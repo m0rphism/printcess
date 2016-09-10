@@ -1,0 +1,14 @@
+TAGS
+dist/
+.stack-work/
+.#*
+auto/
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.swp
+
+output/
