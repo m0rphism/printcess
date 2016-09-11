@@ -15,8 +15,14 @@ instance Pretty Expr where
     EAbs i e   → assocR 0 $ "λ" +> i +> ". " +> R e
     EApp e1 e2 → assocL 9 $ L e1 +> " " +> R e2
 
+expr0, expr1, expr2 :: Expr
 expr0 = EApp (EVar "x") (EVar "y")
 expr1 = EAbs "x" $ EAbs "y" $ EApp expr0 expr0
-test1 = putStrLn $ pretty expr1
+expr2 = foldl EApp expr0 (replicate 20 expr0)
 
-main = putStrLn "Printcess Pretty Printing Example"
+main :: IO ()
+main = do
+  prettyPrint $ "Printcess Pretty Printing Example"
+  prettyPrint expr1
+  prettyPrint' (defConfig { configMaxLineWidth = 20 }) expr2
+  -- prettyPrint' (configMaxLineWidth .= 20) expr2

@@ -13,7 +13,7 @@
 
 module Printcess.PrettyPrinting (
   -- * Types
-  PrettyM, Pretty(..),
+  PrettyM, Pretty(..), Config(..), defConfig,
   -- * Eliminations
   pretty, pretty',
   prettyPrint, prettyPrint',
@@ -49,6 +49,21 @@ import qualified Data.Map as M
 import Debug.Trace
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
+
+data Config = Config
+  -- { configSpacesPerIndent :: Int
+  { configMaxLineWidth    :: Int
+  , configInitPrecedence  :: Int
+  , configInitIndent      :: Int
+  }
+
+defConfig :: Config
+defConfig = Config
+  -- { configSpacesPerIndent = 2
+  { configMaxLineWidth    = 80
+  , configInitPrecedence  = -1
+  , configInitIndent      = 0
+  }
 
 data Assoc = AssocN | AssocL | AssocR
   deriving (Eq, Ord, Read, Show)
@@ -119,14 +134,19 @@ prettyPrint :: Pretty a => a → IO ()
 prettyPrint = putStrLn . pretty
 
 pretty :: Pretty a => a → String
-pretty = pretty' 0 (-1) 80
+pretty = pretty' defConfig
 
-pretty' :: Pretty a => Int → Int → Int → a → String
-pretty' i p w = concat . (`sepByL` "\n") . reverse . NE.toList . view text
-              . flip execState (PrettySt i p AssocN w ("" :| [])) . runPrettyM . pp . (addIndent +>)
+pretty' :: Pretty a => Config → a → String
+pretty' c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
+          . flip execState (PrettySt (configInitIndent c)
+                                     (configInitPrecedence c)
+                                     AssocN
+                                     (configMaxLineWidth c)
+                                     ("" :| []))
+          . runPrettyM . pp . (addIndent +>)
 
-prettyPrint' :: Pretty a => Int → Int → Int → a → IO ()
-prettyPrint' i p w = putStrLn . pretty' i p w
+prettyPrint' :: Pretty a => Config → a → IO ()
+prettyPrint' c = putStrLn . pretty' c
 
 indent :: PrettyM ()
 indent = indentation %= (+1)
