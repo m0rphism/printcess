@@ -11,7 +11,32 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE LambdaCase, UnicodeSyntax, MultiWayIf, KindSignatures #-}
 
-module Printcess.PrettyPrinting where
+module Printcess.PrettyPrinting (
+  -- * Types
+  PrettyM, Pretty(..),
+  -- * Eliminations
+  pretty, pretty',
+  prettyPrint, prettyPrint',
+  -- * Basic Combinators
+  (+>),
+  (++>),
+  indent, unindent, indented, addIndent,
+  assocL, assocR, assocN,
+  left, right, inner, AssocAnn(..),
+  write, write',
+  -- * Composite Combinators
+  sepBy, sepBySP, sepByNL, sepByA_, sepByA, sepByL,
+  interleaveL, interleaveR,
+  splitAtDelim,
+  nl, sp,
+  block, block',
+  maybePrint, ifPrint,
+  enclose,
+  ppList, ppListMap, ppMap, ppParen, ppSExp,
+  pps,
+  ppBar,
+  tracePretty, tracePrettyId, tracePrettyM,
+  ) where
 
 import Control.Applicative
 import Control.Monad.State.Lazy
@@ -231,12 +256,9 @@ nl = do
 sp :: PrettyM ()
 sp = write " "
 
-block :: Pretty a => [a] → PrettyM ()
--- block [] = pp ""
--- block [x] = indented x
-block xs = indented $ nl +> (xs `sepBy` nl)
-block' :: Pretty a => [a] → PrettyM ()
-block' xs = indented $ xs `sepBy` nl
+block, block' :: Pretty a => [a] → PrettyM ()
+block  xs = indented $ nl +> (xs `sepBy` nl)
+block' xs = indented $        xs `sepBy` nl
 
 maybePrint :: (Pretty a, Pretty b) => a → Maybe b → PrettyM ()
 maybePrint _ Nothing  = pp ""
