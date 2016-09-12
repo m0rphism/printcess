@@ -10,5 +10,9 @@ auto/
 *.fls
 *.fdb_latexmk
 *.swp
+src/highlight.js
+src/style.css
+default.nix
+shell.nix
 
 output/
