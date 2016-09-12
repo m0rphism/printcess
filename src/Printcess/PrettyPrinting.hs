@@ -13,10 +13,10 @@
 
 module Printcess.PrettyPrinting (
   -- * Types
-  PrettyM, Pretty(..), Config(..), defConfig,
+  PrettyM, Pretty(..), Pretty1(..), Pretty2(..), Config(..), defConfig,
   -- * Eliminations
-  pretty, pretty',
-  prettyPrint, prettyPrint',
+  pretty, prettyDef,
+  prettyPrint, prettyPrintDef,
   -- * Basic Combinators
   (+>),
   (++>),
@@ -36,6 +36,7 @@ module Printcess.PrettyPrinting (
   pps,
   ppBar,
   tracePretty, tracePrettyId, tracePrettyM,
+  tracePrettyDef, tracePrettyIdDef, tracePrettyMDef,
   ) where
 
 import Control.Applicative
@@ -130,14 +131,14 @@ a +> b = pp a >> pp b
 (++>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
 a ++> b = a +> sp +> b
 
-prettyPrint :: Pretty a => a → IO ()
-prettyPrint = putStrLn . pretty
+prettyPrintDef :: Pretty a => a → IO ()
+prettyPrintDef = putStrLn . prettyDef
 
-pretty :: Pretty a => a → String
-pretty = pretty' defConfig
+prettyDef :: Pretty a => a → String
+prettyDef = pretty defConfig
 
-pretty' :: Pretty a => Config → a → String
-pretty' c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
+pretty :: Pretty a => Config → a → String
+pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
           . flip execState (PrettySt (configInitIndent c)
                                      (configInitPrecedence c)
                                      AssocN
@@ -145,8 +146,8 @@ pretty' c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
                                      ("" :| []))
           . runPrettyM . pp . (addIndent +>)
 
-prettyPrint' :: Pretty a => Config → a → IO ()
-prettyPrint' c = putStrLn . pretty' c
+prettyPrint :: Pretty a => Config → a → IO ()
+prettyPrint c = putStrLn . pretty c
 
 indent :: PrettyM ()
 indent = indentation %= (+1)
@@ -205,9 +206,6 @@ assocDir a ma = do
        assoc .= AssocN
        pp ma
        assoc .= a'
-
-(|-) ∷ (Assoc, Int) → PrettyM () → PrettyM ()
-(|-) = withPrecedence; infix 1 |-
 
 write :: String → PrettyM ()
 write = (`sepByA_` nl) . map write' . (`splitAtDelim` '\n')
@@ -312,16 +310,22 @@ pps = fmap pp
 ppBar ∷ Pretty a => Char → a → PrettyM ()
 ppBar c s = do
   w ← use maxLineWidth
-  replicate 5 c ++> s ++> replicate (w - (7 + length (pretty s))) c +> "\n"
+  replicate 5 c ++> s ++> replicate (w - (7 + length (prettyDef s))) c +> "\n"
 
-tracePretty :: Pretty a => a → b → b
-tracePretty = trace . pretty
+tracePrettyDef :: Pretty a => a → b → b
+tracePrettyDef = tracePretty defConfig
+tracePretty :: Pretty a => Config → a → b → b
+tracePretty c = trace . pretty c
 
-tracePrettyId :: Pretty a => a → a
-tracePrettyId x = trace (pretty x) x
+tracePrettyIdDef :: Pretty a => a → a
+tracePrettyIdDef = tracePrettyId defConfig
+tracePrettyId :: Pretty a => Config → a → a
+tracePrettyId c x = trace (pretty c x) x
 
-tracePrettyM :: (Monad m , Pretty a) => a → m ()
-tracePrettyM = traceM . pretty
+tracePrettyMDef :: (Monad m , Pretty a) => a → m ()
+tracePrettyMDef = tracePrettyM defConfig
+tracePrettyM :: (Monad m , Pretty a) => Config → a → m ()
+tracePrettyM c = traceM . pretty c
 
 -- Instances for Kallisti.Functor Types ----------------------------------------
 
