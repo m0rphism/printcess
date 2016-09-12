@@ -27,7 +27,8 @@ library
     template-haskell,
     transformers,
     unordered-containers >= 0.2.7.0,
-    prelude-extras
+    prelude-extras,
+    data-default
   ghc-options:
     -Wall -fno-warn-partial-type-signatures -fdefer-type-errors
   exposed-modules:

@@ -13,10 +13,10 @@
 
 module Printcess.PrettyPrinting (
   -- * Types
-  PrettyM, Pretty(..), Pretty1(..), Pretty2(..), Config(..), defConfig,
+  PrettyM, Pretty(..), Pretty1(..), Pretty2(..), Config(..),
   -- * Eliminations
-  pretty, prettyDef,
-  prettyPrint, prettyPrintDef,
+  pretty,
+  prettyPrint,
   -- * Basic Combinators
   (+>),
   (++>),
@@ -36,7 +36,7 @@ module Printcess.PrettyPrinting (
   pps,
   ppBar,
   tracePretty, tracePrettyId, tracePrettyM,
-  tracePrettyDef, tracePrettyIdDef, tracePrettyMDef,
+  Data.Default.def,
   ) where
 
 import Control.Applicative
@@ -45,6 +45,7 @@ import Control.Lens
 import Data.Bifunctor
 import Data.Foldable
 import Data.String
+import Data.Default
 import Data.List (takeWhile, dropWhile, dropWhileEnd)
 import qualified Data.Map as M
 import Debug.Trace
@@ -58,13 +59,13 @@ data Config = Config
   , configInitIndent      :: Int
   }
 
-defConfig :: Config
-defConfig = Config
-  -- { configSpacesPerIndent = 2
-  { configMaxLineWidth    = 80
-  , configInitPrecedence  = -1
-  , configInitIndent      = 0
-  }
+instance Default Config where
+  def = Config
+    -- { configSpacesPerIndent = 2
+    { configMaxLineWidth    = 80
+    , configInitPrecedence  = -1
+    , configInitIndent      = 0
+    }
 
 data Assoc = AssocN | AssocL | AssocR
   deriving (Eq, Ord, Read, Show)
@@ -130,12 +131,6 @@ a +> b = pp a >> pp b
 
 (++>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
 a ++> b = a +> sp +> b
-
-prettyPrintDef :: Pretty a => a → IO ()
-prettyPrintDef = putStrLn . prettyDef
-
-prettyDef :: Pretty a => a → String
-prettyDef = pretty defConfig
 
 pretty :: Pretty a => Config → a → String
 pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
@@ -310,20 +305,14 @@ pps = fmap pp
 ppBar ∷ Pretty a => Char → a → PrettyM ()
 ppBar c s = do
   w ← use maxLineWidth
-  replicate 5 c ++> s ++> replicate (w - (7 + length (prettyDef s))) c +> "\n"
+  replicate 5 c ++> s ++> replicate (w - (7 + length (pretty def s))) c +> "\n"
 
-tracePrettyDef :: Pretty a => a → b → b
-tracePrettyDef = tracePretty defConfig
 tracePretty :: Pretty a => Config → a → b → b
 tracePretty c = trace . pretty c
 
-tracePrettyIdDef :: Pretty a => a → a
-tracePrettyIdDef = tracePrettyId defConfig
 tracePrettyId :: Pretty a => Config → a → a
 tracePrettyId c x = trace (pretty c x) x
 
-tracePrettyMDef :: (Monad m , Pretty a) => a → m ()
-tracePrettyMDef = tracePrettyM defConfig
 tracePrettyM :: (Monad m , Pretty a) => Config → a → m ()
 tracePrettyM c = traceM . pretty c
 

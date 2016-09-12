@@ -22,7 +22,7 @@ expr2 = foldl EApp expr0 (replicate 20 expr0)
 
 main :: IO ()
 main = do
-  prettyPrint $ "Printcess Pretty Printing Example"
-  prettyPrint expr1
-  prettyPrint' (defConfig { configMaxLineWidth = 20 }) expr2
-  -- prettyPrint' (configMaxLineWidth .= 20) expr2
+  prettyPrint def $ "Printcess Pretty Printing Example"
+  prettyPrint def expr1
+  prettyPrint (def { configMaxLineWidth = 20 }) expr2
+  -- prettyPrint def' (configMaxLineWidth .= 20) expr2
