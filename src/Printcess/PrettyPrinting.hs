@@ -26,7 +26,6 @@ module Printcess.PrettyPrinting (
   -- * Basic Combinators
   (+>),
   (++>),
-  write, write',
   -- * Indentation
   indent, unindent, indented,
   -- * Associativity & Fixity
@@ -194,14 +193,14 @@ a +> b = pp a >> pp b
 a ++> b = a +> sp +> b
 
 -- TODO: Does this need to be exported? What does it do?
--- | Append a string to the printed text, potentially causing a line break if
---   the maximum text width gets exceeded.
+-- Append a string to the printed text, potentially causing a line break if
+-- the maximum text width gets exceeded.
 write :: String → PrettyM ()
-write = (`sepByA_` nl) . map write' . (`splitAtDelim` '\n')
+-- FIXME: was there a reason for this? o.O
+-- write = (`sepByA_` nl) . map write' . (`splitAtDelim` '\n')
+write = write'
 
 -- TODO: Does this need to be exported? What does it do?
--- | Append a string to the printed text, potentially causing a line break if
---   the maximum text width gets exceeded.
 write' :: String → PrettyM ()
 write' s = do
   text . NE.headL %= (++s)
