@@ -18,6 +18,7 @@ module Printcess.PrettyPrinting (
   tracePretty, tracePrettyId, tracePrettyM,
   -- * Config
   Config(..), configMaxLineWidth, configInitPrecedence, configInitIndent,
+  Data.Default.def,
   -- * Type Classes
   Pretty(..), Pretty1(..), Pretty2(..),
   -- * Monad
@@ -25,10 +26,12 @@ module Printcess.PrettyPrinting (
   -- * Basic Combinators
   (+>),
   (++>),
+  write, write',
+  -- * Indentation
   indent, unindent, indented,
+  -- * Associativity & Fixity
   assocL, assocR, assocN,
   left, right, inner, AssocAnn(..),
-  write, write',
   -- * Composite Combinators
   sepBy, sepBySP, sepByNL, sepByA_, sepByA, sepByL,
   interleaveL, interleaveR,
@@ -39,7 +42,6 @@ module Printcess.PrettyPrinting (
   ppList, ppListMap, ppMap, ppParen, ppSExp,
   pps,
   ppBar,
-  Data.Default.def,
   ) where
 
 import Control.Applicative
@@ -101,8 +103,8 @@ makeLenses ''Config
 
 -- Pretty Printing -------------------------------------------------------------
 
--- | Render an [a] to [String] using a [Config], that specifies
---   how the [a] should be rendered.
+-- | Render an @a@ to @String@ using a @Config@, that specifies
+--   how the @a@ should be rendered.
 pretty :: Pretty a => Config → a → String
 pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
           . flip execState (PrettySt (_configInitIndent c)
@@ -112,8 +114,8 @@ pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
                                      ("" :| []))
           . runPrettyM . pp . (addIndent +>)
 
--- | Render an [a] to [stdout] using a [Config], that specifies
---   how the [a] should be rendered.
+-- | Render an @a@ to @stdout@ using a @Config@, that specifies
+--   how the @a@ should be rendered.
 prettyPrint :: Pretty a => Config → a → IO ()
 prettyPrint c = putStrLn . pretty c
 
@@ -181,95 +183,15 @@ instance a ~ () => Monoid (PrettyM a) where
 
 -- | Print two things in sequence.
 --
---       a +> b = pp a >> pp b
+--   > a +> b = pp a >> pp b
 (+>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
 a +> b = pp a >> pp b
 
 -- | Print two things in sequence, separated by a space.
 --
---       a ++> b = a +> " " +> b
+--   > a ++> b = a +> " " +> b
 (++>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
 a ++> b = a +> sp +> b
-
--- | Increment indentation level.
-indent :: PrettyM ()
-indent = indentation %= (+1)
-
--- | Decrement indentation level.
-unindent :: PrettyM ()
-unindent = indentation %= subtract 1
-
--- | Print an [a] using an incremented indentation after newlines.
-indented :: Pretty a => a → PrettyM ()
-indented a = indent +> a +> unindent
-
-addIndent :: PrettyM ()
-addIndent = do
-  i <- use indentation
-  write' $ replicate (i*2) ' '
-
-withPrecedence :: (Assoc, Int) → PrettyM () → PrettyM ()
-withPrecedence (a, p) ma = do
-  p' ← use precedence
-  a' ← use assoc
-  precedence .= p
-  assoc .= a
-  if | p' == p && a' == a && a /= AssocN → ma
-     | p' < p    → ma
-     | otherwise → do write' "("; ma; write' ")"
-  precedence .= p'
-  assoc .= a'
-
--- | Print an [a] as a left-associative operator of a certain fixity.
-assocL :: Pretty a => Int → a → PrettyM ()
-assocL i = withPrecedence (AssocL, i) . pp
-
--- | Print an [a] as a right-associative operator of a certain fixity.
-assocR :: Pretty a => Int → a → PrettyM ()
-assocR i = withPrecedence (AssocR, i) . pp
-
--- | Print an [a] as a non-associative operator of a certain fixity.
-assocN :: Pretty a => Int → a → PrettyM ()
-assocN i = withPrecedence (AssocN, i) . pp
-
--- | Print an [a] as a left, right, or inner argument of a mixfix operator.
-data AssocAnn a = L a | R a | I a
-  deriving (Eq, Ord, Read, Show)
-
-instance Pretty1 AssocAnn
-instance Pretty a => Pretty (AssocAnn a) where
-  pp = \case
-    L a → left a
-    R a → right a
-    I a → inner a
-
--- | Print an [a] as the left argument of a mixfix operator.
-left :: Pretty a => a → PrettyM ()
-left = assocDir AssocL
-
--- | Print an [a] as the right argument of a mixfix operator.
-right :: Pretty a => a → PrettyM ()
-right = assocDir AssocR
-
--- | Print an [a] as an inner argument of a mixfix operator.
-inner :: Pretty a => a → PrettyM ()
-inner ma = do
-  p' ← use precedence
-  a' ← use assoc
-  precedence .= (-1)
-  assoc .= AssocN
-  pp ma
-  precedence .= p'
-  assoc .= a'
-
-assocDir :: Pretty a => Assoc → a → PrettyM ()
-assocDir a ma = do
-  a' ← use assoc
-  if | a' == a → pp ma
-     | otherwise → do
-       assoc .= AssocN
-       pp ma
-       assoc .= a'
 
 write :: String → PrettyM ()
 write = (`sepByA_` nl) . map write' . (`splitAtDelim` '\n')
@@ -291,6 +213,90 @@ ensureLineWidth = do
          | otherwise = (s11, s12 ++ s2)
     text . NE.headL .= line
     unless (all (== ' ') rest) $ indented $ indented $ do nl; write' rest
+
+-- Indentation -----------------------------------------------------------------
+
+-- | Increment indentation level.
+indent :: PrettyM ()
+indent = indentation %= (+1)
+
+-- | Decrement indentation level.
+unindent :: PrettyM ()
+unindent = indentation %= subtract 1
+
+-- | Print an @a@ using an incremented indentation after newlines.
+indented :: Pretty a => a → PrettyM ()
+indented a = indent +> a +> unindent
+
+addIndent :: PrettyM ()
+addIndent = do
+  i <- use indentation
+  write' $ replicate (i*2) ' '
+
+-- Associativity & Fixity ------------------------------------------------------
+
+withPrecedence :: (Assoc, Int) → PrettyM () → PrettyM ()
+withPrecedence (a, p) ma = do
+  p' ← use precedence
+  a' ← use assoc
+  precedence .= p
+  assoc .= a
+  if | p' == p && a' == a && a /= AssocN → ma
+     | p' < p    → ma
+     | otherwise → do write' "("; ma; write' ")"
+  precedence .= p'
+  assoc .= a'
+
+-- | Print an @a@ as a left-associative operator of a certain fixity.
+assocL :: Pretty a => Int → a → PrettyM ()
+assocL i = withPrecedence (AssocL, i) . pp
+
+-- | Print an @a@ as a right-associative operator of a certain fixity.
+assocR :: Pretty a => Int → a → PrettyM ()
+assocR i = withPrecedence (AssocR, i) . pp
+
+-- | Print an @a@ as a non-associative operator of a certain fixity.
+assocN :: Pretty a => Int → a → PrettyM ()
+assocN i = withPrecedence (AssocN, i) . pp
+
+-- | Print an @a@ as a left, right, or inner argument of a mixfix operator.
+data AssocAnn a = L a | R a | I a
+  deriving (Eq, Ord, Read, Show)
+
+instance Pretty1 AssocAnn
+instance Pretty a => Pretty (AssocAnn a) where
+  pp = \case
+    L a → left a
+    R a → right a
+    I a → inner a
+
+-- | Print an @a@ as the left argument of a mixfix operator.
+left :: Pretty a => a → PrettyM ()
+left = assocDir AssocL
+
+-- | Print an @a@ as the right argument of a mixfix operator.
+right :: Pretty a => a → PrettyM ()
+right = assocDir AssocR
+
+-- | Print an @a@ as an inner argument of a mixfix operator.
+inner :: Pretty a => a → PrettyM ()
+inner ma = do
+  p' ← use precedence
+  a' ← use assoc
+  precedence .= (-1)
+  assoc .= AssocN
+  pp ma
+  precedence .= p'
+  assoc .= a'
+
+assocDir :: Pretty a => Assoc → a → PrettyM ()
+assocDir a ma = do
+  a' ← use assoc
+  if | a' == a → pp ma
+     | otherwise → do
+       assoc .= AssocN
+       pp ma
+       assoc .= a'
 
 -- Composite Combinators -------------------------------------------------------
 
