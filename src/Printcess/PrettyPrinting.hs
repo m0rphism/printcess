@@ -13,7 +13,8 @@
 
 module Printcess.PrettyPrinting (
   -- * Types
-  PrettyM, Pretty(..), Pretty1(..), Pretty2(..), Config(..),
+  PrettyM, Pretty(..), Pretty1(..), Pretty2(..),
+  Config(..), configMaxLineWidth, configInitPrecedence, configInitIndent,
   -- * Eliminations
   pretty,
   prettyPrint,
@@ -61,23 +62,25 @@ data Config = Config
   --   that still allows the line to remain below this maximum.
   --
   --  Default: 80
-    configMaxLineWidth    :: Int
+    _configMaxLineWidth    :: Int
   -- | Precendence level to start pretty printing with.
   --
   --  Default: (-1)
-  , configInitPrecedence  :: Int
+  , _configInitPrecedence  :: Int
   -- | Indentation level to start pretty printing with.
   --
   --  Default: 0
-  , configInitIndent      :: Int
+  , _configInitIndent      :: Int
   }
+
+makeLenses ''Config
 
 instance Default Config where
   def = Config
     -- { configSpacesPerIndent = 2
-    { configMaxLineWidth    = 80
-    , configInitPrecedence  = -1
-    , configInitIndent      = 0
+    { _configMaxLineWidth    = 80
+    , _configInitPrecedence  = -1
+    , _configInitIndent      = 0
     }
 
 -- Type Classes ----------------------------------------------------------------
@@ -179,10 +182,10 @@ a ++> b = a +> sp +> b
 --   how the [a] should be rendered.
 pretty :: Pretty a => Config → a → String
 pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
-          . flip execState (PrettySt (configInitIndent c)
-                                     (configInitPrecedence c)
+          . flip execState (PrettySt (_configInitIndent c)
+                                     (_configInitPrecedence c)
                                      AssocN
-                                     (configMaxLineWidth c)
+                                     (_configMaxLineWidth c)
                                      ("" :| []))
           . runPrettyM . pp . (addIndent +>)
 

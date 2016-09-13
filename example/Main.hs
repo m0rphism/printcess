@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase, UnicodeSyntax #-}
 
 import Printcess.PrettyPrinting
+import Control.Lens
 
 type Ident = String
 
@@ -24,5 +25,5 @@ main :: IO ()
 main = do
   prettyPrint def $ "Printcess Pretty Printing Example"
   prettyPrint def expr1
-  prettyPrint (def { configMaxLineWidth = 20 }) expr2
-  -- prettyPrint def' (configMaxLineWidth .= 20) expr2
+  prettyPrint (def { _configMaxLineWidth = 20 }) expr2
+  prettyPrint (def & configMaxLineWidth .~ 20) expr2
