@@ -15,7 +15,6 @@ module Printcess.PrettyPrinting (
   -- * Pretty Printing
   pretty,
   prettyPrint,
-  tracePretty, tracePrettyId, tracePrettyM,
   -- * Config
   Config(..), configMaxLineWidth, configInitPrecedence, configInitIndent,
   Data.Default.def,
@@ -102,8 +101,8 @@ makeLenses ''Config
 
 -- Pretty Printing -------------------------------------------------------------
 
--- | Render an @a@ to 'String' using a 'Config', that specifies
---   how the @a@ should be rendered.
+-- | Render a 'Pretty' printable @a@ to 'String' using a 'Config', that
+--   specifies how the @a@ should be rendered.
 pretty :: Pretty a => Config → a → String
 pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
           . flip execState (PrettySt (_configInitIndent c)
@@ -113,19 +112,14 @@ pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
                                      ("" :| []))
           . runPrettyM . pp . (addIndent +>)
 
--- | Render an @a@ to @stdout@ using a 'Config', that specifies
---   how the @a@ should be rendered.
+-- | Render a 'Pretty' printable @a@ to @stdout@ using a 'Config', that
+--   specifies how the @a@ should be rendered.
+--
+--   Convenience function, defined as:
+--
+--   > prettyPrint c = putStrLn . pretty c
 prettyPrint :: Pretty a => Config → a → IO ()
 prettyPrint c = putStrLn . pretty c
-
-tracePretty :: Pretty a => Config → a → b → b
-tracePretty c = trace . pretty c
-
-tracePrettyId :: Pretty a => Config → a → a
-tracePrettyId c x = trace (pretty c x) x
-
-tracePrettyM :: (Monad m , Pretty a) => Config → a → m ()
-tracePrettyM c = traceM . pretty c
 
 -- Type Classes ----------------------------------------------------------------
 
@@ -161,7 +155,7 @@ class Pretty2 (f :: * → * → *) where
 
 -- Pretty Monad ----------------------------------------------------------------
 
--- | The 'PrettyM' monad is run during the pretty printing process, e.g. in
+-- | The 'PrettyM' monad is run in the pretty printing process, e.g. in
 --   'pretty' or 'prettyPrint'.
 
 --   A monoid could have been used instead, but with a monad the @do@ notation

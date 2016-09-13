@@ -41,9 +41,9 @@ import Control.Lens
     @String@s as identifiers.
 
     > data Expr              -- An expression can be either
-    >   = EVar String        -- * a variable expression
-    >   | EAbs String Expr   -- * a lambda abstraction binding
-    >   | EApp Expr Expr
+    >   = EVar String        -- * a variable
+    >   | EAbs String Expr   -- * a function abstraction
+    >   | EApp Expr Expr     -- * a function application
 
 -}
 
