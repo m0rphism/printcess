@@ -12,12 +12,16 @@
 {-# LANGUAGE LambdaCase, UnicodeSyntax, MultiWayIf, KindSignatures #-}
 
 module Printcess.PrettyPrinting (
-  -- * Types
-  PrettyM, Pretty(..), Pretty1(..), Pretty2(..),
-  Config(..), configMaxLineWidth, configInitPrecedence, configInitIndent,
-  -- * Eliminations
+  -- * Pretty Printing
   pretty,
   prettyPrint,
+  tracePretty, tracePrettyId, tracePrettyM,
+  -- * Config
+  Config(..), configMaxLineWidth, configInitPrecedence, configInitIndent,
+  -- * Type Classes
+  Pretty(..), Pretty1(..), Pretty2(..),
+  -- * Monad
+  PrettyM,
   -- * Basic Combinators
   (+>),
   (++>),
@@ -35,7 +39,6 @@ module Printcess.PrettyPrinting (
   ppList, ppListMap, ppMap, ppParen, ppSExp,
   pps,
   ppBar,
-  tracePretty, tracePrettyId, tracePrettyM,
   Data.Default.def,
   ) where
 
@@ -51,6 +54,19 @@ import qualified Data.Map as M
 import Debug.Trace
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
+
+data PrettySt = PrettySt
+  { _indentation  :: Int
+  , _precedence   :: Int
+  , _assoc        :: Assoc
+  , _maxLineWidth :: Int
+  , _text         :: NE.NonEmpty String
+  }
+
+data Assoc = AssocN | AssocL | AssocR
+  deriving (Eq, Ord, Read, Show)
+
+makeLenses ''PrettySt
 
 -- Config ----------------------------------------------------------------------
 
@@ -73,8 +89,6 @@ data Config = Config
   , _configInitIndent      :: Int
   }
 
-makeLenses ''Config
-
 instance Default Config where
   def = Config
     -- { configSpacesPerIndent = 2
@@ -83,12 +97,50 @@ instance Default Config where
     , _configInitIndent      = 0
     }
 
+makeLenses ''Config
+
+-- Pretty Printing -------------------------------------------------------------
+
+-- | Render an [a] to [String] using a [Config], that specifies
+--   how the [a] should be rendered.
+pretty :: Pretty a => Config → a → String
+pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
+          . flip execState (PrettySt (_configInitIndent c)
+                                     (_configInitPrecedence c)
+                                     AssocN
+                                     (_configMaxLineWidth c)
+                                     ("" :| []))
+          . runPrettyM . pp . (addIndent +>)
+
+-- | Render an [a] to [stdout] using a [Config], that specifies
+--   how the [a] should be rendered.
+prettyPrint :: Pretty a => Config → a → IO ()
+prettyPrint c = putStrLn . pretty c
+
+tracePretty :: Pretty a => Config → a → b → b
+tracePretty c = trace . pretty c
+
+tracePrettyId :: Pretty a => Config → a → a
+tracePrettyId c x = trace (pretty c x) x
+
+tracePrettyM :: (Monad m , Pretty a) => Config → a → m ()
+tracePrettyM c = traceM . pretty c
+
 -- Type Classes ----------------------------------------------------------------
 
 -- | The @Pretty@ type class describes how something can be pretty printed.
 class Pretty a where
   -- | Pretty print an @a@ as a @PrettyM@ action.
   pp :: a → PrettyM ()
+
+instance Pretty String where pp = write
+instance Pretty Char   where pp = pp . (:[])
+instance Pretty Int    where pp = pp . show
+instance Pretty Float  where pp = pp . show
+instance Pretty Double where pp = pp . show
+instance (Pretty k, Pretty v) => Pretty (M.Map k v) where
+  pp = foldl pp' (pp "") . M.toList where
+    pp' s (k, v) = s +> k ++> "=>" ++> indented v +> nl
 
 -- | The @Pretty1@ type class lifts pretty printing to unary type constructors.
 --   It can be used in special cases to abstract over type constructors which
@@ -106,16 +158,7 @@ class Pretty2 (f :: * → * → *) where
   default pp2 :: Pretty (f a b) => f a b -> PrettyM ()
   pp2 = pp
 
-
 -- Pretty Monad ----------------------------------------------------------------
-
-data PrettySt = PrettySt
-  { _indentation  :: Int
-  , _precedence   :: Int
-  , _assoc        :: Assoc
-  , _maxLineWidth :: Int
-  , _text         :: NE.NonEmpty String
-  }
 
 -- | The @PrettyM@ monad is run during the pretty printing process, e.g. in
 --   @pretty@ or @prettyPrint@.
@@ -125,44 +168,14 @@ data PrettySt = PrettySt
 newtype PrettyM a = PrettyM { runPrettyM :: State PrettySt a }
   deriving (Functor, Applicative, Monad, MonadState PrettySt)
 
--- Types -----------------------------------------------------------------------
-
-data Assoc = AssocN | AssocL | AssocR
-  deriving (Eq, Ord, Read, Show)
-
-makeLenses ''PrettySt
-
--- | Print an [a] as a left, right, or inner argument of a mixfix operator.
-data AssocAnn a = L a | R a | I a
-  deriving (Eq, Ord, Read, Show)
-
+instance Pretty (PrettyM ()) where pp = (>> return ())
 -- instance a ~ () => IsString (PrettyM ()) where
 --   fromString = write
-
-instance Pretty1 AssocAnn
-instance Pretty a => Pretty (AssocAnn a) where
-  pp = \case
-    L a → left a
-    R a → right a
-    I a → inner a
-
-instance Pretty (PrettyM ()) where pp = (>> return ())
-instance Pretty String      where pp = write
 -- instance Pretty (PrettyM a) where pp = (>> return ())
--- instance Pretty String      where pp = write
-
-instance Pretty Char        where pp = pp . (:[])
-instance Pretty Int         where pp = pp . show
-instance Pretty Float       where pp = pp . show
-instance Pretty Double      where pp = pp . show
-
-instance (Pretty k, Pretty v) => Pretty (M.Map k v) where
-  pp = foldl pp' (pp "") . M.toList where
-    pp' s (k, v) = s +> k ++> "=>" ++> indented v +> nl
-
 instance a ~ () => Monoid (PrettyM a) where
   mempty = pure mempty
   mappend = liftA2 mappend
+
 
 -- Basic Combinators -----------------------------------------------------------
 
@@ -177,22 +190,6 @@ a +> b = pp a >> pp b
 --       a ++> b = a +> " " +> b
 (++>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
 a ++> b = a +> sp +> b
-
--- | Render an [a] to [String] using a [Config], that specifies
---   how the [a] should be rendered.
-pretty :: Pretty a => Config → a → String
-pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
-          . flip execState (PrettySt (_configInitIndent c)
-                                     (_configInitPrecedence c)
-                                     AssocN
-                                     (_configMaxLineWidth c)
-                                     ("" :| []))
-          . runPrettyM . pp . (addIndent +>)
-
--- | Render an [a] to [stdout] using a [Config], that specifies
---   how the [a] should be rendered.
-prettyPrint :: Pretty a => Config → a → IO ()
-prettyPrint c = putStrLn . pretty c
 
 -- | Increment indentation level.
 indent :: PrettyM ()
@@ -234,6 +231,17 @@ assocR i = withPrecedence (AssocR, i) . pp
 -- | Print an [a] as a non-associative operator of a certain fixity.
 assocN :: Pretty a => Int → a → PrettyM ()
 assocN i = withPrecedence (AssocN, i) . pp
+
+-- | Print an [a] as a left, right, or inner argument of a mixfix operator.
+data AssocAnn a = L a | R a | I a
+  deriving (Eq, Ord, Read, Show)
+
+instance Pretty1 AssocAnn
+instance Pretty a => Pretty (AssocAnn a) where
+  pp = \case
+    L a → left a
+    R a → right a
+    I a → inner a
 
 -- | Print an [a] as the left argument of a mixfix operator.
 left :: Pretty a => a → PrettyM ()
@@ -369,15 +377,6 @@ ppBar ∷ Pretty a => Char → a → PrettyM ()
 ppBar c s = do
   w ← use maxLineWidth
   replicate 5 c ++> s ++> replicate (w - (7 + length (pretty def s))) c +> "\n"
-
-tracePretty :: Pretty a => Config → a → b → b
-tracePretty c = trace . pretty c
-
-tracePrettyId :: Pretty a => Config → a → a
-tracePrettyId c x = trace (pretty c x) x
-
-tracePrettyM :: (Monad m , Pretty a) => Config → a → m ()
-tracePrettyM c = traceM . pretty c
 
 -- Internal --------------------------------------------------------------------
 
