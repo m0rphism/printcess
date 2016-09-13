@@ -102,7 +102,7 @@ makeLenses ''Config
 
 -- Pretty Printing -------------------------------------------------------------
 
--- | Render an @a@ to @String@ using a @Config@, that specifies
+-- | Render an @a@ to 'String' using a 'Config', that specifies
 --   how the @a@ should be rendered.
 pretty :: Pretty a => Config → a → String
 pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
@@ -113,7 +113,7 @@ pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
                                      ("" :| []))
           . runPrettyM . pp . (addIndent +>)
 
--- | Render an @a@ to @stdout@ using a @Config@, that specifies
+-- | Render an @a@ to @stdout@ using a 'Config', that specifies
 --   how the @a@ should be rendered.
 prettyPrint :: Pretty a => Config → a → IO ()
 prettyPrint c = putStrLn . pretty c
@@ -129,9 +129,9 @@ tracePrettyM c = traceM . pretty c
 
 -- Type Classes ----------------------------------------------------------------
 
--- | The @Pretty@ type class describes how something can be pretty printed.
+-- | The 'Pretty' type class describes how something can be pretty printed.
 class Pretty a where
-  -- | Pretty print an @a@ as a @PrettyM@ action.
+  -- | Pretty print an @a@ as a 'PrettyM' action.
   pp :: a → PrettyM ()
 
 instance Pretty String where pp = write
@@ -143,7 +143,7 @@ instance (Pretty k, Pretty v) => Pretty (M.Map k v) where
   pp = foldl pp' (pp "") . M.toList where
     pp' s (k, v) = s +> k ++> "=>" ++> indented v +> nl
 
--- | The @Pretty1@ type class lifts pretty printing to unary type constructors.
+-- | The 'Pretty1' type class lifts pretty printing to unary type constructors.
 --   It can be used in special cases to abstract over type constructors which
 --   are pretty printable for any pretty printable type argument.
 class Pretty1 f where
@@ -151,7 +151,7 @@ class Pretty1 f where
   default pp1 :: Pretty (f a) => f a -> PrettyM ()
   pp1 = pp
 
--- | The @Pretty1@ type class lifts pretty printing to binary type constructors.
+-- | The 'Pretty2' type class lifts pretty printing to binary type constructors.
 --   It can be used in special cases to abstract over type constructors which
 --   are pretty printable for any pretty printable type argument.
 class Pretty2 (f :: * → * → *) where
@@ -161,8 +161,8 @@ class Pretty2 (f :: * → * → *) where
 
 -- Pretty Monad ----------------------------------------------------------------
 
--- | The @PrettyM@ monad is run during the pretty printing process, e.g. in
---   @pretty@ or @prettyPrint@.
+-- | The 'PrettyM' monad is run during the pretty printing process, e.g. in
+--   'pretty' or 'prettyPrint'.
 
 --   A monoid could have been used instead, but with a monad the @do@ notation
 --   can be used to print in sequence with semicolons.
@@ -180,13 +180,13 @@ instance a ~ () => Monoid (PrettyM a) where
 
 -- Basic Combinators -----------------------------------------------------------
 
--- | Print two things in sequence.
+-- | Print two 'Pretty' printable things in sequence.
 --
 --   > a +> b = pp a >> pp b
 (+>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
 a +> b = pp a >> pp b
 
--- | Print two things in sequence, separated by a space.
+-- | Print two 'Pretty' printable things in sequence, separated by a space.
 --
 --   > a ++> b = a +> " " +> b
 (++>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
