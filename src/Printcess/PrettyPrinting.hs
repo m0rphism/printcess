@@ -53,6 +53,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 
 -- Config ----------------------------------------------------------------------
 
+-- | Configurations for pretty printing.
 data Config = Config
   -- { configSpacesPerIndent :: Int
   {
@@ -79,6 +80,30 @@ instance Default Config where
     , configInitIndent      = 0
     }
 
+-- Type Classes ----------------------------------------------------------------
+
+-- | The @Pretty@ type class describes how something can be pretty printed.
+class Pretty a where
+  -- | Pretty print an @a@ as a @PrettyM@ action.
+  pp :: a → PrettyM ()
+
+-- | The @Pretty1@ type class lifts pretty printing to unary type constructors.
+--   It can be used in special cases to abstract over type constructors which
+--   are pretty printable for any pretty printable type argument.
+class Pretty1 f where
+  pp1 :: Pretty a => f a → PrettyM ()
+  default pp1 :: Pretty (f a) => f a -> PrettyM ()
+  pp1 = pp
+
+-- | The @Pretty1@ type class lifts pretty printing to binary type constructors.
+--   It can be used in special cases to abstract over type constructors which
+--   are pretty printable for any pretty printable type argument.
+class Pretty2 (f :: * → * → *) where
+  pp2 :: (Pretty a, Pretty b) => f a b → PrettyM ()
+  default pp2 :: Pretty (f a b) => f a b -> PrettyM ()
+  pp2 = pp
+
+
 -- Pretty Monad ----------------------------------------------------------------
 
 data PrettySt = PrettySt
@@ -89,30 +114,13 @@ data PrettySt = PrettySt
   , _text         :: NE.NonEmpty String
   }
 
--- | The @PrettyM@ monad is used to describe how something is pretty printed.
-
---   The @pp@ method of the @Pretty@ class describes how something is pretty printed,
---   by returning an @PrettyM ()@.
+-- | The @PrettyM@ monad is run during the pretty printing process, e.g. in
+--   @pretty@ or @prettyPrint@.
 
 --   A monoid could have been used instead, but with a monad the @do@ notation
 --   can be used to print in sequence with semicolons.
 newtype PrettyM a = PrettyM { runPrettyM :: State PrettySt a }
   deriving (Functor, Applicative, Monad, MonadState PrettySt)
-
--- Type Classes ----------------------------------------------------------------
-
-class Pretty a where
-  pp :: a → PrettyM ()
-
-class Pretty1 f where
-  pp1 :: Pretty a => f a → PrettyM ()
-  default pp1 :: Pretty (f a) => f a -> PrettyM ()
-  pp1 = pp
-
-class Pretty2 (f :: * → * → *) where
-  pp2 :: (Pretty a, Pretty b) => f a b → PrettyM ()
-  default pp2 :: Pretty (f a b) => f a b -> PrettyM ()
-  pp2 = pp
 
 -- Types -----------------------------------------------------------------------
 
