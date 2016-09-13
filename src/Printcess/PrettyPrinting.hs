@@ -27,7 +27,6 @@ module Printcess.PrettyPrinting (
   -- * Composite Combinators
   sepBy, sepBySP, sepByNL, sepByA_, sepByA, sepByL,
   interleaveL, interleaveR,
-  splitAtDelim,
   nl, sp,
   block, block',
   maybePrint, ifPrint,
@@ -52,10 +51,23 @@ import Debug.Trace
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
 
+-- Config ----------------------------------------------------------------------
+
 data Config = Config
   -- { configSpacesPerIndent :: Int
-  { configMaxLineWidth    :: Int
+  {
+  -- | When a line gets longer, it is broken after the latest space,
+  --   that still allows the line to remain below this maximum.
+  --
+  --  Default: 80
+    configMaxLineWidth    :: Int
+  -- | Precendence level to start pretty printing with.
+  --
+  --  Default: (-1)
   , configInitPrecedence  :: Int
+  -- | Indentation level to start pretty printing with.
+  --
+  --  Default: 0
   , configInitIndent      :: Int
   }
 
@@ -67,31 +79,54 @@ instance Default Config where
     , configInitIndent      = 0
     }
 
+-- Pretty Monad ----------------------------------------------------------------
+
+data PrettySt = PrettySt
+  { _indentation  :: Int
+  , _precedence   :: Int
+  , _assoc        :: Assoc
+  , _maxLineWidth :: Int
+  , _text         :: NE.NonEmpty String
+  }
+
+-- | The @PrettyM@ monad is used to describe how something is pretty printed.
+
+--   The @pp@ method of the @Pretty@ class describes how something is pretty printed,
+--   by returning an @PrettyM ()@.
+
+--   A monoid could have been used instead, but with a monad the @do@ notation
+--   can be used to print in sequence with semicolons.
+newtype PrettyM a = PrettyM { runPrettyM :: State PrettySt a }
+  deriving (Functor, Applicative, Monad, MonadState PrettySt)
+
+-- Type Classes ----------------------------------------------------------------
+
+class Pretty a where
+  pp :: a → PrettyM ()
+
+class Pretty1 f where
+  pp1 :: Pretty a => f a → PrettyM ()
+  default pp1 :: Pretty (f a) => f a -> PrettyM ()
+  pp1 = pp
+
+class Pretty2 (f :: * → * → *) where
+  pp2 :: (Pretty a, Pretty b) => f a b → PrettyM ()
+  default pp2 :: Pretty (f a b) => f a b -> PrettyM ()
+  pp2 = pp
+
+-- Types -----------------------------------------------------------------------
+
 data Assoc = AssocN | AssocL | AssocR
   deriving (Eq, Ord, Read, Show)
+
+makeLenses ''PrettySt
 
 -- | Print an [a] as a left, right, or inner argument of a mixfix operator.
 data AssocAnn a = L a | R a | I a
   deriving (Eq, Ord, Read, Show)
 
-
-declareLenses [d|
-  data PrettySt = PrettySt
-    { indentation  :: Int
-    , precedence   :: Int
-    , assoc        :: Assoc
-    , maxLineWidth :: Int
-    , text         :: NE.NonEmpty String
-    }
-  |]
-
-newtype PrettyM a = PrettyM { runPrettyM :: State PrettySt a }
-  deriving (Functor, Applicative, Monad, MonadState PrettySt)
-
 -- instance a ~ () => IsString (PrettyM ()) where
 --   fromString = write
-
-class Pretty a              where pp :: a → PrettyM ()
 
 instance Pretty1 AssocAnn
 instance Pretty a => Pretty (AssocAnn a) where
@@ -99,16 +134,6 @@ instance Pretty a => Pretty (AssocAnn a) where
     L a → left a
     R a → right a
     I a → inner a
-
-class Pretty2 (f :: * → * → *) where
-  pp2 :: (Pretty a, Pretty b) => f a b → PrettyM ()
-  default pp2 :: Pretty (f a b) => f a b -> PrettyM ()
-  pp2 = pp
-
-class Pretty1 f where
-  pp1 :: Pretty a => f a → PrettyM ()
-  default pp1 :: Pretty (f a) => f a -> PrettyM ()
-  pp1 = pp
 
 instance Pretty (PrettyM ()) where pp = (>> return ())
 instance Pretty String      where pp = write
@@ -127,6 +152,8 @@ instance (Pretty k, Pretty v) => Pretty (M.Map k v) where
 instance a ~ () => Monoid (PrettyM a) where
   mempty = pure mempty
   mappend = liftA2 mappend
+
+-- Basic Combinators -----------------------------------------------------------
 
 -- | Print two things in sequence.
 --
@@ -246,6 +273,8 @@ ensureLineWidth = do
     text . NE.headL .= line
     unless (all (== ' ') rest) $ indented $ indented $ do nl; write' rest
 
+-- Composite Combinators -------------------------------------------------------
+
 sepBy :: (Pretty a, Pretty b) => [a] → b → PrettyM ()
 sepBy as s = sepByA_ (map pp as) (pp s)
 
@@ -338,6 +367,8 @@ tracePrettyId c x = trace (pretty c x) x
 
 tracePrettyM :: (Monad m , Pretty a) => Config → a → m ()
 tracePrettyM c = traceM . pretty c
+
+-- Internal --------------------------------------------------------------------
 
 -- Instances for Kallisti.Functor Types ----------------------------------------
 
