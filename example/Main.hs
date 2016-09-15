@@ -19,7 +19,7 @@ instance Pretty Expr where
 expr0, expr1, expr2 :: Expr
 expr0 = EApp (EVar "x") (EVar "y")
 expr1 = EAbs "x" $ EAbs "y" $ EApp expr0 expr0
-expr2 = foldl EApp expr0 (replicate 20 expr0)
+expr2 = foldl EApp expr0 (replicate 10 expr0)
 
 main :: IO ()
 main = do

@@ -24,7 +24,18 @@ import Control.Lens
     It supports
 
     * indentation aware printing;
-    * automatic line breaks with temporarily increased indentation on text-width exceedance;
+
+      TODO: move to indentation chapter
+
+      > pretty def $ "do\n" +> block [ "putStrLn hello"
+      >                              , "putStrLn world" ]
+      prints
+
+      > do
+      >   putStrLn hello
+      >   putStrLn world
+
+    * indented line breaks when exceeding a maximum line length;
     * fixity and associativity sensitive printing of operators.
 
     Having a well readable representation of the intermediate and target languages
