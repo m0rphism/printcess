@@ -3,9 +3,10 @@
 module Printcess.Tutorial (
     -- * Introduction
     -- $introduction
-
     -- * Basic Printing
     -- $basicprinting
+    -- * Making an AST printable
+    -- $basicast
     -- * Keeping Indentation Levels
     -- * Automatic Line Breaks
     -- * Operator Associativity & Fixity
@@ -45,6 +46,36 @@ import Control.Lens
 -}
 
 {- $basicprinting
+    In this section, it is explained how simple @String@s can be printed using different configurations.
+
+    The library organizes pretty printable things in the @Pretty@ type class.
+    Pretty printable things can be printed to @String@ using the @pretty@ function.
+
+    > pretty :: Pretty a => Config → a → String
+
+    The config parameter describes how the @a@ should be printed.
+    @Config@ has a @Data.Default@ instance and lenses for the configuration options.
+
+    The library provides @Pretty@ instances for a few base types including @String@ and @Int@.
+    The following code uses them to print a @String@ and an @Int@ using the @pretty@ function:
+
+    > pretty def "foo"    -- evaluates to "foo"
+    > pretty def 2        -- evaluates to "2"
+
+    @Pretty@ printable things can be printed in sequence using the @(+>)@ operator.
+
+    > (+>) : (Pretty a, Pretty b) => a → b → PrettyM ()
+
+    This is illustrated in the next example:
+
+    > pretty def $ "foo" +> 2  -- evaluates to "foo2"
+
+    -- @configMaxLineWidth@' :: Lens' Config Int'
+
+
+-}
+
+{- $basicast
     In this section we will use @printcess@ to describe a simple pretty printer for an
     abstract syntax tree (AST) of the lambda calculus.
 
@@ -56,6 +87,22 @@ import Control.Lens
     >   | EAbs String Expr   -- * a function abstraction
     >   | EApp Expr Expr     -- * a function application
 
+    Making an instance for @Expr@ in the @Pretty@ type class, makes an @Expr@
+    pretty printable.
+
+    > instance Pretty Expr where
+    >   pp = \case
+    >     EVar i     → pp i
+    >     EAbs i e   → "λ" +> i +> ". " +> e
+    >     EApp e1 e2 → e1 +> " " +> e2
+
+    Variables should be printed
+
+    > instance Pretty Expr where
+    >   pp = \case
+    >     EVar i     → pp i
+    >     EAbs i e   → assocR 0 $ "λ" +> i +> ". " +> R e
+    >     EApp e1 e2 → assocL 9 $ L e1 +> " " +> R e2
 -}
 
 type Ident = String
