@@ -1,3 +1,7 @@
+{-
+  TODO:
+    - support for different amounts of tabs or spaces per indent
+-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -113,6 +117,10 @@ makeLenses ''Config
 
 -- | Render a 'Pretty' printable @a@ to 'String' using a 'Config', that
 --   specifies how the @a@ should be rendered.
+--
+--   The following example uses the default configuration to render @1@:
+--
+--   > pretty def (1 :: Int)  -- evaluates to "1"
 pretty :: Pretty a => Config → a → String
 pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
           . flip execState (PrettySt (_configInitIndent c)

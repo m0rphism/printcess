@@ -27,3 +27,8 @@ main = do
   prettyPrint def expr1
   prettyPrint (def { _configMaxLineWidth = 20 }) expr2
   prettyPrint (def & configMaxLineWidth .~ 20) expr2
+  prettyPrint (def & configMaxLineWidth .~ 24
+                   & configInitIndent   .~ 2) expr2
+
+  -- FIXME: strings longer than maxlinewidth should be cut and not cause non-termination.
+  -- prettyPrint (def & configMaxLineWidth .~ 8) "xx xx xx xx xx xx xx xx"
