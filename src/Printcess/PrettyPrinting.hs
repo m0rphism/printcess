@@ -12,7 +12,7 @@
 {-# LANGUAGE LambdaCase, UnicodeSyntax, MultiWayIf, KindSignatures #-}
 
 module Printcess.PrettyPrinting (
-  -- * Pretty Printing
+  -- * Rendering
   pretty,
   prettyPrint,
   -- * Config
@@ -45,13 +45,9 @@ module Printcess.PrettyPrinting (
 import Control.Applicative
 import Control.Monad.State.Lazy
 import Control.Lens
-import Data.Bifunctor
 import Data.Foldable
-import Data.String
 import Data.Default
-import Data.List (takeWhile, dropWhile, dropWhileEnd)
 import qualified Data.Map as M
-import Debug.Trace
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
 
@@ -70,7 +66,21 @@ makeLenses ''PrettySt
 
 -- Config ----------------------------------------------------------------------
 
--- | Configurations for pretty printing.
+-- | A @Config@ describes how something can be @Pretty@ printed, and hence is
+-- consumed mainly by the @pretty@ function.
+--
+-- A @Config@ can be @Default@ constructed via the @def@ method and manipulated
+-- via lenses for its fields. This is illustrated in the following example,
+-- creating a config with maximum line width of @70@ and an initial indentation
+-- level of @2@:
+--
+-- > import Control.Lens ((&), (.~))
+-- > import Data.Default (def)
+-- >
+-- > foo :: String
+-- > foo = pretty config "foo"
+-- >   where config = def & configMaxLineWidth .~ 70
+-- >                      & configInitIndent   .~  2
 data Config = Config
   -- { configSpacesPerIndent :: Int
   {
@@ -117,13 +127,22 @@ pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
 --
 --   Convenience function, defined as:
 --
---   > prettyPrint c = putStrLn . pretty c
-prettyPrint :: Pretty a => Config → a → IO ()
-prettyPrint c = putStrLn . pretty c
+--   > prettyPrint c = liftIO . putStrLn . pretty c
+prettyPrint :: (MonadIO m, Pretty a) => Config → a → m ()
+prettyPrint c = liftIO . putStrLn . pretty c
 
 -- Type Classes ----------------------------------------------------------------
 
--- | The 'Pretty' type class describes how something can be pretty printed.
+-- | The 'Pretty' type class describes pretty printable types.
+--
+-- Types which instanciate this class can be combined with each other, e.g.
+-- printed in sequence with @(+>)@, and rendered to @String@ using the @pretty@
+-- function.
+--
+-- The library provides instances for some base types, including @String@ and @Int@,
+-- which are used in the following example to print @"foo"@ in sequence with @1@:
+--
+-- > pretty def ("foo" +> 1)    -- evaluates to "foo1"
 class Pretty a where
   -- | Pretty print an @a@ as a 'PrettyM' action.
   pp :: a → PrettyM ()

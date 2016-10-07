@@ -3,17 +3,25 @@
 module Printcess.Tutorial (
     -- * Introduction
     -- $introduction
+    -- expr0,
+
     -- * Basic Printing
     -- $basicprinting
+    -- expr1,
+
     -- * Making an AST printable
     -- $basicast
+    -- expr2,
+
     -- * Keeping Indentation Levels
+
     -- * Automatic Line Breaks
+
     -- * Operator Associativity & Fixity
 
     -- * Module
     Expr(..),
-    expr0, expr1, expr2,
+    -- expr0, expr1, expr2,
     main0,
   ) where
 
