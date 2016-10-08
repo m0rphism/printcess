@@ -201,11 +201,23 @@ instance a ~ () => Monoid (PrettyM a) where
 
 -- | Print two 'Pretty' printable things in sequence.
 --
+--   Example:
+--
+--   > pretty def $ "x" +> 1  -- ↪ "x1"
+--
+--   Convenience function, defined as
+--
 --   > a +> b = pp a >> pp b
 (+>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
 a +> b = pp a >> pp b
 
 -- | Print two 'Pretty' printable things in sequence, separated by a space.
+--
+--   Example:
+--
+--   > pretty def $ "x" ++> 1  -- ↪ "x 1"
+--
+--   Convenience function, defined as
 --
 --   > a ++> b = a +> " " +> b
 (++>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
