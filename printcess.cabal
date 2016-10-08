@@ -66,8 +66,18 @@ test-suite spec
   main-is:
       Spec.hs
   build-depends:
-      base >= 4.8 && < 5
-    , HUnit
-    , QuickCheck
-    , hspec >= 1.5.3
-    , printcess
+    base >= 4.7 && < 5,
+    containers,
+    lens,
+    linear,
+    mtl,
+    strict,
+    template-haskell,
+    transformers,
+    unordered-containers >= 0.2.7.0,
+    prelude-extras,
+    data-default,
+    HUnit,
+    QuickCheck,
+    hspec >= 1.5.3,
+    printcess
