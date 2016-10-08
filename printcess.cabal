@@ -57,3 +57,17 @@ executable printcess-example
     printcess
   ghc-options:
     -Wall -fno-warn-partial-type-signatures -fdefer-type-errors
+
+test-suite spec
+  type:
+      exitcode-stdio-1.0
+  hs-source-dirs:
+      test
+  main-is:
+      Spec.hs
+  build-depends:
+      base >= 4.8 && < 5
+    , HUnit
+    , QuickCheck
+    , hspec >= 1.5.3
+    , printcess
