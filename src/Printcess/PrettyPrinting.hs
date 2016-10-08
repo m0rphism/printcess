@@ -73,16 +73,25 @@ makeLenses ''PrettySt
 --
 -- A @Config@ can be @Default@ constructed via the @def@ method and manipulated
 -- via lenses for its fields. This is illustrated in the following example,
--- creating a config with maximum line width of @70@ and an initial indentation
--- level of @2@:
+-- creating a @Config@ with maximum line width of @7@ and an initial indentation
+-- level of @1@:
 --
 -- > import Control.Lens ((&), (.~))
 -- > import Data.Default (def)
 -- >
 -- > foo :: String
--- > foo = pretty config "foo"
--- >   where config = def & configMaxLineWidth .~ 70
--- >                      & configInitIndent   .~  2
+-- > foo = pretty config "foo bar baz"
+-- >   where config = def & configMaxLineWidth .~ 6
+-- >                      & configInitIndent   .~ 1
+--
+-- To preserve the maximum line width, the @String@ @"foo bar baz"@ is split
+-- into 3 lines by replacing spaces with newlines. Because of the initial
+-- indentation, each line gets indented by one level, which here corresponds to
+-- 2 spaces:
+--
+-- >   foo
+-- >   bar
+-- >   baz
 data Config = Config
   -- { configSpacesPerIndent :: Int
   {
