@@ -267,6 +267,9 @@ unindent = indentation %= subtract 1
 --   > pretty def $ "while (true) {" +>
 --   >              indented (nl +> "f();" +> nl +> "g();") +>
 --   >              nl +> "}"
+--   > ↪ pretty def $ "while (true) {" +>
+--   >              block ["f();", "g();"] +>
+--   >              nl +> "}"
 --   > ↪ "while (true) {
 --   >      f();
 --   >      g();
