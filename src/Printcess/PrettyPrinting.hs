@@ -170,14 +170,14 @@ prettyPrint c = liftIO . putStrLn . pretty c
 --
 -- > expr = EAdd (EInt 1) (EAdd (EInt 2) (EInt 3))
 --
--- as @"1+(2+3)"@, we can make @Expr@ an instance of the @Pretty@ class
+-- as @"(1+(2+3))"@, we can make @Expr@ an instance of the @Pretty@ class
 --
 -- > instance Pretty Expr where
 -- >   pp = \case
 -- >     EInt i     → pp i  -- Use the Pretty instance for Int
 -- >     EAdd e1 e2 → "(" +> e1 ++> "+" ++> e2 +> ")"
 --
--- and then print it with @pretty def expr@.
+-- and then render it to @String@ with @pretty def expr@.
 class Pretty a where
   -- | Pretty print an @a@ as a 'PrettyM' action.
   pp :: a → PrettyM ()
