@@ -34,11 +34,15 @@ module Printcess.PrettyPrinting (
   -- * Associativity & Fixity
   assocL, assocR, assocN,
   left, right, inner, AssocAnn(..),
-  -- * Composite Combinators
+  -- * Folding Lists of Printable Things
   sepBy, interleaveL, interleaveR,
   block, block',
+  ppList, ppSExp,
+  -- * Folding Maps of Printable Things
+  ppListMap, ppMap,
+  -- * Misc
   ifPrint,
-  ppList, ppListMap, ppMap, ppParen, ppSExp,
+  ppParen,
   ppBar,
   -- * Constants
   nl, sp,
