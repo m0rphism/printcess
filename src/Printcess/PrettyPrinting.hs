@@ -22,8 +22,9 @@ module Printcess.PrettyPrinting (
   -- * Config
   Config(..),
   configMaxLineWidth, configInitPrecedence, configInitIndent,
-  configIndentChar, configIndentDepth, configBlockStyle,
+  configIndentChar, configIndentDepth, configIndentAfterBreaks, configBlockStyle,
   Data.Default.def,
+  BlockStyle(..),
   -- * Type Classes
   Pretty(..), Pretty1(..), Pretty2(..),
   -- * Monad
@@ -123,6 +124,12 @@ data Config = Config
   --
   --   Default: @2@
   , _configIndentDepth :: Int
+  -- | How much to increase indentation when a line break occurs because @configMaxLineWidth@ was exceeded.
+  --   Assuming the line to print has to be broken multiple times, the
+  --   indentation of all resulting lines, except the first one, is increased by this amount.
+  --
+  --   Default: @2@
+  , _configIndentAfterBreaks :: Int
   -- | How to display items of a block.
   --
   --   @BSImplicit@ displays blocks implicitly via line breaks and indentation.
@@ -145,6 +152,7 @@ instance Default Config where
     , _configInitIndent      = 0
     , _configIndentChar      = ' '
     , _configIndentDepth     = 2
+    , _configIndentAfterBreaks = 2
     , _configBlockStyle      = BSImplicit
     }
 
