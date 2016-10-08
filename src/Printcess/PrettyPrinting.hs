@@ -73,7 +73,7 @@ makeLenses ''PrettySt
 --
 -- A @Config@ can be @Default@ constructed via the @def@ method and manipulated
 -- via lenses for its fields. This is illustrated in the following example,
--- creating a @Config@ with maximum line width of @7@ and an initial indentation
+-- creating a @Config@ with maximum line width of @6@ and an initial indentation
 -- level of @1@:
 --
 -- > import Control.Lens ((&), (.~))
@@ -158,6 +158,26 @@ prettyPrint c = liftIO . putStrLn . pretty c
 -- which are used in the following example to print @"foo"@ in sequence with @1@:
 --
 -- > pretty def ("foo" +> 1)    -- evaluates to "foo1"
+--
+-- Consider a simple data type for integer arithmetic
+--
+-- > data Expr
+-- >   = EInt Int
+-- >   | EAdd Expr Expr
+-- >   deriving (Eq, Ord, Read, Show)
+--
+-- To pretty print the expression
+--
+-- > expr = EAdd (EInt 1) (EAdd (EInt 2) (EInt 3))
+--
+-- as @"1+(2+3)"@, we can make @Expr@ an instance of the @Pretty@ class
+--
+-- > instance Pretty Expr where
+-- >   pp = \case
+-- >     EInt i     → pp i  -- Use the Pretty instance for Int
+-- >     EAdd e1 e2 → "(" +> e1 ++> "+" ++> e2 +> ")"
+--
+-- and then print it with @pretty def expr@.
 class Pretty a where
   -- | Pretty print an @a@ as a 'PrettyM' action.
   pp :: a → PrettyM ()
