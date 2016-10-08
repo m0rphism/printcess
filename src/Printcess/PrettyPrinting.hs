@@ -359,7 +359,7 @@ interleaveL a bs = fold $ interleaveL' (pp a) (pp <$> bs)
 
 -- | Put an @a@ after each element of a @[b]@ and then print them in sequence.
 --
---   Example:
+--   Examples:
 --
 --   > pretty def $ interleaveR "," []          -- ↪ ""
 --   > pretty def $ interleaveR "," ["x"]       -- ↪ "x,"
