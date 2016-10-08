@@ -128,7 +128,7 @@ data Config = Config
   --
   --   Assuming the line to print has to be broken multiple times, the
   --   indentation of all resulting lines, except the first one, is increased by this amount.
-  --   For example @"foo bar baz boo@ may be printed to
+  --   For example @"foo bar baz boo"@ may be printed to
   --
   --   > foo bar
   --   >     baz
