@@ -35,8 +35,7 @@ module Printcess.PrettyPrinting (
   assocL, assocR, assocN,
   left, right, inner, AssocAnn(..),
   -- * Composite Combinators
-  sepBy, sepBySP, sepByNL, sepByA_, sepByA, sepByL,
-  interleaveL, interleaveR,
+  sepBy, interleaveL, interleaveR,
   nl, sp,
   block, block',
   maybePrint, ifPrint,
@@ -326,14 +325,15 @@ assocDir a ma = do
 
 -- Composite Combinators -------------------------------------------------------
 
+-- | Put an @a@ between each element of a list of @b@s and then print them in sequence.
+--
+--   Examples:
+--
+--   > pretty def $ []         `sepBy` ","  -- ↪ ""
+--   > pretty def $ ["x"]      `sepBy` ","  -- ↪ "x"
+--   > pretty def $ ["x", "y"] `sepBy` ","  -- ↪ "x,y"
 sepBy :: (Pretty a, Pretty b) => [a] → b → PrettyM ()
 sepBy as s = sepByA_ (map pp as) (pp s)
-
-sepBySP :: (Pretty a) => [a] → PrettyM ()
-sepBySP = (`sepBy` sp)
-
-sepByNL :: (Pretty a) => [a] → PrettyM ()
-sepByNL = (`sepBy` nl)
 
 sepByA_ :: Applicative f => [f a] → f a → f ()
 sepByA_ as s = () <$ sepByA as s
@@ -348,8 +348,23 @@ sepByL []  _    = []
 sepByL [s] _    = [s]
 sepByL (s:ss) s' = s : s' : sepByL ss s'
 
+-- | Put an @a@ before each element of a list of @b@s and then print them in sequence.
+--
+--   Examples:
+--
+--   > pretty def $ interleaveL "," []          -- ↪ ""
+--   > pretty def $ interleaveL "," ["x"]       -- ↪ ",x"
+--   > pretty def $ interleaveL "," ["x", "y"]  -- ↪ ",x,y"
 interleaveL :: (Pretty a, Pretty b) => a → [b] → PrettyM ()
 interleaveL a bs = fold $ interleaveL' (pp a) (pp <$> bs)
+
+-- | Put an @a@ after each element of a list of @b@s and then print them in sequence.
+--
+--   Example:
+--
+--   > pretty def $ interleaveR "," []          -- ↪ ""
+--   > pretty def $ interleaveR "," ["x"]       -- ↪ "x,"
+--   > pretty def $ interleaveR "," ["x", "y"]  -- ↪ "x,y,"
 interleaveR :: (Pretty a, Pretty b) => a → [b] → PrettyM ()
 interleaveR a bs = fold $ interleaveR' (pp a) (pp <$> bs)
 
@@ -400,7 +415,7 @@ ppParen ∷ Pretty b ⇒ b → PrettyM ()
 ppParen x = "(" +> x +> ")"
 
 ppSExp ∷ Pretty b ⇒ [b] → PrettyM ()
-ppSExp = ppParen . sepBySP
+ppSExp = ppParen . (`sepBy` sp)
 
 pps ∷ Pretty a => [a] → [PrettyM ()]
 pps = fmap pp
