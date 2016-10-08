@@ -125,8 +125,16 @@ data Config = Config
   --   Default: @2@
   , _configIndentDepth :: Int
   -- | How much to increase indentation when a line break occurs because @configMaxLineWidth@ was exceeded.
+  --
   --   Assuming the line to print has to be broken multiple times, the
   --   indentation of all resulting lines, except the first one, is increased by this amount.
+  --   For example @"foo bar baz boo@ may be printed to
+  --
+  --   > foo bar
+  --   >     baz
+  --   >     boo
+  --
+  --   using default configuration with @configMaxLineWidth .~ 8@.
   --
   --   Default: @2@
   , _configIndentAfterBreaks :: Int
