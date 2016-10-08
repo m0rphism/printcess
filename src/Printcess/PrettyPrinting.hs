@@ -20,7 +20,9 @@ module Printcess.PrettyPrinting (
   pretty,
   prettyPrint,
   -- * Config
-  Config(..), configMaxLineWidth, configInitPrecedence, configInitIndent,
+  Config(..),
+  configMaxLineWidth, configInitPrecedence, configInitIndent,
+  configIndentChar, configIndentDepth, configBlockStyle,
   Data.Default.def,
   -- * Type Classes
   Pretty(..), Pretty1(..), Pretty2(..),
@@ -102,17 +104,38 @@ data Config = Config
   -- | When a line gets longer, it is broken after the latest space,
   --   that still allows the line to remain below this maximum.
   --
-  --  Default: 80
+  --  Default: @80@
     _configMaxLineWidth    :: Int
   -- | Precendence level to start pretty printing with.
   --
-  --  Default: (-1)
+  --  Default: @(-1)@
   , _configInitPrecedence  :: Int
   -- | Indentation level to start pretty printing with.
   --
-  --  Default: 0
+  --   Default: @0@
   , _configInitIndent      :: Int
+  -- | The character to indent after line breaks with. Usually @' '@ for spaces
+  --   or @'\t'@ for tabs.
+  --
+  --   Default: @' '@
+  , _configIndentChar :: Char
+  -- | How many characters to indent after line breaks with.
+  --
+  --   Default: @2@
+  , _configIndentDepth :: Int
+  -- | How to display items of a block.
+  --
+  --   @BSImplicit@ displays blocks implicitly via line breaks and indentation.
+  --   This can be used for example to render Haskell @do@ blocks.
+  --
+  --   @BSExplicit@ displays blocks explicitly via characters for block start, block end, and item separation.
+  --   This can be used for example to render C-style brace and semicolon delimited blocks with @BSExplicit '{' ';' '}'@.
+  --
+  --   Default: @BSImplicit@
+  , _configBlockStyle :: BlockStyle
   }
+
+data BlockStyle = BSImplicit | BSExplicit Char Char Char
 
 instance Default Config where
   def = Config
@@ -120,6 +143,9 @@ instance Default Config where
     { _configMaxLineWidth    = 80
     , _configInitPrecedence  = -1
     , _configInitIndent      = 0
+    , _configIndentChar      = ' '
+    , _configIndentDepth     = 2
+    , _configBlockStyle      = BSImplicit
     }
 
 makeLenses ''Config
