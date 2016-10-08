@@ -37,7 +37,7 @@ module Printcess.PrettyPrinting (
   -- * Composite Combinators
   sepBy, interleaveL, interleaveR,
   block, block',
-  maybePrint, ifPrint,
+  ifPrint,
   ppList, ppListMap, ppMap, ppParen, ppSExp,
   ppBar,
   -- * Constants
@@ -399,11 +399,6 @@ block  xs = indented $ nl +> (xs `sepBy` nl)
 -- > --       putStrLn world"
 block' :: Pretty a => [a] → PrettyM ()
 block' xs = indented $        xs `sepBy` nl
-
--- | If @Nothing@, print @""@; if @Just x@ print @x +> a@.
-maybePrint :: (Pretty a, Pretty b) => a → Maybe b → PrettyM ()
-maybePrint _ Nothing  = pp ""
-maybePrint p (Just a) = p +> a
 
 -- | If @True@ print an @a@; if @False@ print @""@.
 ifPrint :: Pretty a => Bool → a → PrettyM ()
