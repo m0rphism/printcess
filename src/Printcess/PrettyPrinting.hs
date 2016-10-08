@@ -261,6 +261,20 @@ unindent :: PrettyM ()
 unindent = indentation %= subtract 1
 
 -- | Print an @a@ using an incremented indentation after newlines.
+--
+--   Example:
+--
+--   > pretty def $ "while (true) {" +>
+--   >              indented (nl +> "f();" +> nl +> "g();") +>
+--   >              nl +> "}"
+--   > ↪ "while (true) {
+--   >      f();
+--   >      g();
+--   >    }"
+--
+--   Convenience function, defined as
+--
+--   > indented a = indent +> a +> unindent
 indented :: Pretty a => a → PrettyM ()
 indented a = indent +> a +> unindent
 
