@@ -106,15 +106,15 @@ data Config = Config
   --   that still allows the line to remain below this maximum.
   --
   --  Default: @80@
-    _configMaxLineWidth    :: Int
+    _configMaxLineWidth :: Int
   -- | Precendence level to start pretty printing with.
   --
   --  Default: @(-1)@
-  , _configInitPrecedence  :: Int
+  , _configInitPrecedence :: Int
   -- | Indentation level to start pretty printing with.
   --
   --   Default: @0@
-  , _configInitIndent      :: Int
+  , _configInitIndent :: Int
   -- | The character to indent after line breaks with. Usually @' '@ for spaces
   --   or @'\t'@ for tabs.
   --
