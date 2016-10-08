@@ -36,13 +36,12 @@ module Printcess.PrettyPrinting (
   left, right, inner, AssocAnn(..),
   -- * Composite Combinators
   sepBy, interleaveL, interleaveR,
-  nl, sp,
   block, block',
   maybePrint, ifPrint,
-  enclose,
   ppList, ppListMap, ppMap, ppParen, ppSExp,
-  pps,
   ppBar,
+  -- * Constants
+  nl, sp,
   ) where
 
 import Control.Applicative
@@ -325,14 +324,14 @@ assocDir a ma = do
 
 -- Composite Combinators -------------------------------------------------------
 
--- | Put an @a@ between each element of a list of @b@s and then print them in sequence.
+-- | Put an @a@ between each element of a @[b]@ and then print them in sequence.
 --
 --   Examples:
 --
 --   > pretty def $ []         `sepBy` ","  -- ↪ ""
 --   > pretty def $ ["x"]      `sepBy` ","  -- ↪ "x"
 --   > pretty def $ ["x", "y"] `sepBy` ","  -- ↪ "x,y"
-sepBy :: (Pretty a, Pretty b) => [a] → b → PrettyM ()
+sepBy :: (Pretty a, Pretty b) => [b] → a → PrettyM ()
 sepBy as s = sepByA_ (map pp as) (pp s)
 
 sepByA_ :: Applicative f => [f a] → f a → f ()
@@ -348,7 +347,7 @@ sepByL []  _    = []
 sepByL [s] _    = [s]
 sepByL (s:ss) s' = s : s' : sepByL ss s'
 
--- | Put an @a@ before each element of a list of @b@s and then print them in sequence.
+-- | Put an @a@ before each element of a @[b]@ and then print them in sequence.
 --
 --   Examples:
 --
@@ -358,7 +357,7 @@ sepByL (s:ss) s' = s : s' : sepByL ss s'
 interleaveL :: (Pretty a, Pretty b) => a → [b] → PrettyM ()
 interleaveL a bs = fold $ interleaveL' (pp a) (pp <$> bs)
 
--- | Put an @a@ after each element of a list of @b@s and then print them in sequence.
+-- | Put an @a@ after each element of a @[b]@ and then print them in sequence.
 --
 --   Example:
 --
@@ -373,57 +372,120 @@ interleaveL' s = foldl (\xs x → xs ++ [s,x]) []
 interleaveR' :: a → [a] → [a]
 interleaveR' s = foldl (\xs x → xs ++ [x,s]) []
 
-splitAtDelim :: String → Char → [String]
-splitAtDelim s' c = go [] s' where
-  go s [] = [reverse s]
-  go s (x:xs) | x == c    = reverse s : go "" xs
-              | otherwise = go (x:s) xs
+-- splitAtDelim :: String → Char → [String]
+-- splitAtDelim s' c = go [] s' where
+--   go s [] = [reverse s]
+--   go s (x:xs) | x == c    = reverse s : go "" xs
+--               | otherwise = go (x:s) xs
 
+-- | Print a @[a]@ as a block, meaning that the indentation level is
+-- increased, and each @a@ is printed on a single line.
+--
+-- Example:
+--
+-- > pretty def $ "do" ++> block ["putStrLn hello", "putStrLn world"]
+-- > -- ↪ "do
+-- > --      putStrLn hello
+-- > --      putStrLn world"
+block :: Pretty a => [a] → PrettyM ()
+block  xs = indented $ nl +> (xs `sepBy` nl)
+
+-- | Same as @block@, but starts the block on the current line.
+--
+-- Example:
+--
+-- > pretty def $ "do" ++> block' ["putStrLn hello", "putStrLn world"]
+-- > -- ↪ "do putStrLn hello
+-- > --       putStrLn world"
+block' :: Pretty a => [a] → PrettyM ()
+block' xs = indented $        xs `sepBy` nl
+
+-- | If @Nothing@, print @""@; if @Just x@ print @x +> a@.
+maybePrint :: (Pretty a, Pretty b) => a → Maybe b → PrettyM ()
+maybePrint _ Nothing  = pp ""
+maybePrint p (Just a) = p +> a
+
+-- | If @True@ print an @a@; if @False@ print @""@.
+ifPrint :: Pretty a => Bool → a → PrettyM ()
+ifPrint True  a = pp a
+ifPrint False _ = pp ""
+
+-- | Print a @[a]@ similar to its @Show@ instance.
+--
+--   Example:
+--
+--   > pretty def $ ppList [ "x", "y" ]  -- ↪ "[ x, y ]"
+--
+--   Convenience function, defined as:
+--
+--   > ppList ps = "[" ++> (ps `sepBy` ", ") ++> "]"
+ppList :: Pretty a => [a] → PrettyM ()
+ppList ps = "[" ++> (ps `sepBy` ", ") ++> "]"
+
+-- | Print a list map @[(k,v)]@ as @ppList@, but render @(k,v)@ pairs as @"k → v"@.
+--
+--   Example:
+--
+--   > pretty def $ ppListMap [ ("k1", "v1"), ("k2", "v2") ]  -- ↪ "[ k1 → v1, k2 → v2 ]"
+--
+--   Convenience function, defined as:
+--
+--   > ppListMap = block . map (\(a,b) → a ++> "→" ++> b)
+ppListMap :: (Pretty a, Pretty b) => [(a, b)] → PrettyM ()
+ppListMap = block . map (\(a,b) → a ++> "→" ++> b)
+
+-- | Print a @Data.Map@ in the same way as @ppListMap@.
+ppMap :: (Pretty a, Pretty b) => M.Map a b → PrettyM ()
+ppMap = ppListMap . M.assocs
+
+-- | Print an @a@ in parentheses.
+--
+--   Example:
+--
+--   > pretty def $ ppParen "foo"  -- ↪ "(foo)"
+--
+--   Convenience function, defined as:
+--
+--   > ppParen x = "(" +> x +> ")"
+ppParen ∷ Pretty a ⇒ a → PrettyM ()
+ppParen x = "(" +> x +> ")"
+
+-- | Print a @[a]@ as an LISP like SExpr, that is the elements separated by
+--   spaces and enclosed in parentheses.
+--
+--   Example:
+--
+--   > pretty def $ ppSExp ["+", "2", "3"]  -- ↪ "(+ 2 3)"
+--
+--   Convenience function, defined as:
+--
+--   > ppSExp = ppParen . (`sepBy` sp)
+ppSExp ∷ Pretty b ⇒ [b] → PrettyM ()
+ppSExp = ppParen . (`sepBy` sp)
+
+-- | Print a horizontal bar consisting of a @Char@ as long as the max line width.
+--   The horizontal bar has a title @String@ printed at column 6.
+--
+--   Example:
+--
+--   > pretty def $ ppBar '-' "Foo"
+--   > -- ↪ "----- Foo -------------------------------…"
+ppBar ∷ Pretty a => Char → a → PrettyM ()
+ppBar c s = do
+  w ← use maxLineWidth
+  replicate 5 c ++> s ++> replicate (w - (7 + length (pretty def s))) c +> "\n"
+
+
+-- | Print a newline (line break).
 nl :: PrettyM ()
 nl = do
   text %= ("" NE.<|)
   addIndent
 
+-- | Print a space.
 sp :: PrettyM ()
 sp = write " "
 
-block, block' :: Pretty a => [a] → PrettyM ()
-block  xs = indented $ nl +> (xs `sepBy` nl)
-block' xs = indented $        xs `sepBy` nl
-
-maybePrint :: (Pretty a, Pretty b) => a → Maybe b → PrettyM ()
-maybePrint _ Nothing  = pp ""
-maybePrint p (Just a) = p +> a
-
-ifPrint :: Pretty a => Bool → a → PrettyM ()
-ifPrint True  a = pp a
-ifPrint False _ = pp ""
-
-enclose :: (Pretty a, Pretty b, Pretty c) => a → b → [c] → [PrettyM ()]
-enclose a b = fmap (\c → a +> c +> b)
-
-ppList :: Pretty a => [a] → PrettyM ()
-ppList ps = "[" ++> (ps `sepBy` ", ") ++> "]"
-
-ppListMap :: (Pretty a, Pretty b) => [(a, b)] → PrettyM ()
-ppListMap = block . map (\(a,b) → a ++> "→" ++> b)
-
-ppMap :: (Pretty a, Pretty b) => M.Map a b → PrettyM ()
-ppMap = ppListMap . M.assocs
-
-ppParen ∷ Pretty b ⇒ b → PrettyM ()
-ppParen x = "(" +> x +> ")"
-
-ppSExp ∷ Pretty b ⇒ [b] → PrettyM ()
-ppSExp = ppParen . (`sepBy` sp)
-
-pps ∷ Pretty a => [a] → [PrettyM ()]
-pps = fmap pp
-
-ppBar ∷ Pretty a => Char → a → PrettyM ()
-ppBar c s = do
-  w ← use maxLineWidth
-  replicate 5 c ++> s ++> replicate (w - (7 + length (pretty def s))) c +> "\n"
 
 -- Internal --------------------------------------------------------------------
 
