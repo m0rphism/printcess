@@ -175,13 +175,21 @@ makeLenses ''Config
 --
 --   > pretty def (1 :: Int)  -- evaluates to "1"
 pretty :: Pretty a => Config → a → String
-pretty c = concat . (`sepByL` "\n") . reverse . NE.toList . view text
-          . flip execState (PrettySt (_configInitIndent c)
-                                     (_configInitPrecedence c)
-                                     AssocN
-                                     (_configMaxLineWidth c)
-                                     ("" :| []))
-          . runPrettyM . pp . (addIndent +>)
+pretty c
+  = concat
+  . (`sepByL` "\n")
+  . reverse
+  . NE.toList
+  . view text
+  . flip execState (PrettySt (_configInitIndent c)
+                             (_configInitPrecedence c)
+                             AssocN
+                             (_configMaxLineWidth c)
+                             ("" :| []))
+  . runPrettyM
+  . pp
+  . (addIndent +>) -- Add indentation to the first line.
+                   -- The other lines are indented when they are reached.
 
 -- | Render a 'Pretty' printable @a@ to @stdout@ using a 'Config', that
 --   specifies how the @a@ should be rendered.
@@ -228,7 +236,7 @@ class Pretty a where
   -- | Pretty print an @a@ as a 'PrettyM' action.
   pp :: a → PrettyM ()
 
-instance Pretty String where pp = write
+instance Pretty String where pp = ppString
 instance Pretty Char   where pp = pp . (:[])
 instance Pretty Int    where pp = pp . show
 instance Pretty Float  where pp = pp . show
@@ -265,7 +273,7 @@ newtype PrettyM a = PrettyM { runPrettyM :: State PrettySt a }
 
 instance Pretty (PrettyM ()) where pp = (>> return ())
 -- instance a ~ () => IsString (PrettyM ()) where
---   fromString = write
+--   fromString = ppString
 -- instance Pretty (PrettyM a) where pp = (>> return ())
 instance a ~ () => Monoid (PrettyM a) where
   mempty = pure mempty
@@ -301,14 +309,14 @@ a ++> b = a +> sp +> b
 -- TODO: Does this need to be exported? What does it do?
 -- Append a string to the printed text, potentially causing a line break if
 -- the maximum text width gets exceeded.
-write :: String → PrettyM ()
+ppString :: String → PrettyM ()
 -- FIXME: was there a reason for this? o.O
--- write = (`sepByA_` nl) . map write' . (`splitAtDelim` '\n')
-write = write'
+-- ppString = (`sepByA_` nl) . map ppString' . (`splitAtDelim` '\n')
+ppString = ppString'
 
 -- TODO: Does this need to be exported? What does it do?
-write' :: String → PrettyM ()
-write' s = do
+ppString' :: String → PrettyM ()
+ppString' s = do
   text . NE.headL %= (++s)
   ensureLineWidth
 
@@ -323,7 +331,7 @@ ensureLineWidth = do
          | all (== ' ') s11 = _1 %~ (s1++) $ break (==' ') s2
          | otherwise = (s11, s12 ++ s2)
     text . NE.headL .= line
-    unless (all (== ' ') rest) $ indented $ indented $ do nl; write' rest
+    unless (all (== ' ') rest) $ indented $ indented $ do nl; ppString' rest
 
 -- Indentation -----------------------------------------------------------------
 
@@ -359,7 +367,7 @@ indented a = indent +> a +> unindent
 addIndent :: PrettyM ()
 addIndent = do
   i <- use indentation
-  write' $ replicate (i*2) ' '
+  ppString' $ replicate (i*2) ' '
 
 -- Associativity & Fixity ------------------------------------------------------
 
@@ -371,7 +379,7 @@ withPrecedence (a, p) ma = do
   assoc .= a
   if | p' == p && a' == a && a /= AssocN → ma
      | p' < p    → ma
-     | otherwise → do write' "("; ma; write' ")"
+     | otherwise → do ppString' "("; ma; ppString' ")"
   precedence .= p'
   assoc .= a'
 
@@ -583,7 +591,7 @@ nl = do
 
 -- | Print a space.
 sp :: PrettyM ()
-sp = write " "
+sp = ppString " "
 
 
 -- Internal --------------------------------------------------------------------
