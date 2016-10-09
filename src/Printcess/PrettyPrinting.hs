@@ -236,7 +236,20 @@ class Pretty a where
   -- | Pretty print an @a@ as a 'PrettyM' action.
   pp :: a → PrettyM ()
 
-instance Pretty String where pp = ppString
+instance Pretty String where
+  pp s' = do
+    text . NE.headL %= (++s')
+    s ← use $ text . NE.headL
+    w ← use maxLineWidth
+    when (w < length s) $ do
+      let (s1, s2) = splitAt w s
+      let (s12, s11) = both %~ reverse $ break (==' ') $ reverse s1
+      let (line, rest)
+            | all (== ' ') s11 = _1 %~ (s1++) $ break (==' ') s2
+            | otherwise = (s11, s12 ++ s2)
+      text . NE.headL .= line
+      unless (all (== ' ') rest) $ indented $ indented $ do nl; pp rest
+
 instance Pretty Char   where pp = pp . (:[])
 instance Pretty Int    where pp = pp . show
 instance Pretty Float  where pp = pp . show
@@ -273,7 +286,7 @@ newtype PrettyM a = PrettyM { runPrettyM :: State PrettySt a }
 
 instance Pretty (PrettyM ()) where pp = (>> return ())
 -- instance a ~ () => IsString (PrettyM ()) where
---   fromString = ppString
+--   fromString = pp
 -- instance Pretty (PrettyM a) where pp = (>> return ())
 instance a ~ () => Monoid (PrettyM a) where
   mempty = pure mempty
@@ -305,33 +318,6 @@ a +> b = pp a >> pp b
 --   > a ++> b = a +> " " +> b
 (++>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
 a ++> b = a +> sp +> b
-
--- TODO: Does this need to be exported? What does it do?
--- Append a string to the printed text, potentially causing a line break if
--- the maximum text width gets exceeded.
-ppString :: String → PrettyM ()
--- FIXME: was there a reason for this? o.O
--- ppString = (`sepByA_` nl) . map ppString' . (`splitAtDelim` '\n')
-ppString = ppString'
-
--- TODO: Does this need to be exported? What does it do?
-ppString' :: String → PrettyM ()
-ppString' s = do
-  text . NE.headL %= (++s)
-  ensureLineWidth
-
-ensureLineWidth :: PrettyM ()
-ensureLineWidth = do
-  s ← use $ text . NE.headL
-  w ← use maxLineWidth
-  when (w < length s) $ do
-    let (s1, s2) = splitAt w s
-    let (s12, s11) = both %~ reverse $ break (==' ') $ reverse s1
-    let (line, rest)
-         | all (== ' ') s11 = _1 %~ (s1++) $ break (==' ') s2
-         | otherwise = (s11, s12 ++ s2)
-    text . NE.headL .= line
-    unless (all (== ' ') rest) $ indented $ indented $ do nl; ppString' rest
 
 -- Indentation -----------------------------------------------------------------
 
@@ -367,7 +353,7 @@ indented a = indent +> a +> unindent
 addIndent :: PrettyM ()
 addIndent = do
   i <- use indentation
-  ppString' $ replicate (i*2) ' '
+  pp $ replicate (i*2) ' '
 
 -- Associativity & Fixity ------------------------------------------------------
 
@@ -379,7 +365,7 @@ withPrecedence (a, p) ma = do
   assoc .= a
   if | p' == p && a' == a && a /= AssocN → ma
      | p' < p    → ma
-     | otherwise → do ppString' "("; ma; ppString' ")"
+     | otherwise → do pp "("; ma; pp ")"
   precedence .= p'
   assoc .= a'
 
@@ -591,7 +577,7 @@ nl = do
 
 -- | Print a space.
 sp :: PrettyM ()
-sp = ppString " "
+sp = pp " "
 
 
 -- Internal --------------------------------------------------------------------
