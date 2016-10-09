@@ -250,6 +250,45 @@ instance Pretty String where
       text . NE.headL .= line
       unless (all (== ' ') rest) $ indented $ indented $ do nl; pp rest
 
+-- curLineHasSpace :: PrettyM Bool
+-- curLineHasSpace = do
+--   s ← use $ text . NE.headL
+--   w ← use maxLineWidth
+--   pure $ w > length s
+
+-- trySplitAtLastSpace :: String → Maybe (String, String)
+-- trySplitAtLastSpace s =
+--   let (indent, rest) = splitIndent s
+--   in case splitAtChar ' ' rest of
+--       [] → Nothing
+--       xs → Just (init xs, last xs)
+
+-- splitAtChar :: Char → String → [String]
+-- splitAtChar = go "" where
+--   go xs = \case
+--     c:cs | c == c0   → xs : go "" cs
+--          | otherwise → go (xs++[c]) cs
+--     []               → []
+
+-- splitIndent :: String → (String, String)
+-- splitIndent = undefined
+
+-- instance Pretty Char where
+--   pp c = curLineHasSpace >>= \case
+--     True → text . NE.headL %~ (++[c])
+--     False → do
+--       carry ←
+--       text %~ (carry ++ [c] :|)
+--     case
+--     when b $ do
+--       let (s1, s2) = splitAt w s
+--       let (s12, s11) = both %~ reverse $ break (==' ') $ reverse s1
+--       let (line, rest)
+--             | all (== ' ') s11 = _1 %~ (s1++) $ break (==' ') s2
+--             | otherwise = (s11, s12 ++ s2)
+--       text . NE.headL .= line
+--       unless (all (== ' ') rest) $ indented $ indented $ do nl; pp rest
+
 instance Pretty Char   where pp = pp . (:[])
 instance Pretty Int    where pp = pp . show
 instance Pretty Float  where pp = pp . show
