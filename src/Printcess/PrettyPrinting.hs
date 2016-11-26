@@ -22,9 +22,8 @@ module Printcess.PrettyPrinting (
   -- * Config
   Config(..),
   configMaxLineWidth, configInitPrecedence, configInitIndent,
-  configIndentChar, configIndentDepth, configIndentAfterBreaks, configBlockStyle,
+  configIndentChar, configIndentDepth, configIndentAfterBreaks,
   Data.Default.def,
-  BlockStyle(..),
   -- * Type Classes
   Pretty(..), Pretty1(..), Pretty2(..),
   -- * Monad
@@ -59,6 +58,8 @@ import Data.Default
 import qualified Data.Map as M
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
+
+import Debug.Trace
 
 data Assoc = AssocN | AssocL | AssocR
   deriving (Eq, Ord, Read, Show)
@@ -128,49 +129,42 @@ data Config = Config
   --
   --   Default: @2@
   , _configIndentAfterBreaks :: Int
-  -- | How to display items of a block.
-  --
-  --   @BSImplicit@ displays blocks implicitly via line breaks and indentation.
-  --   This can be used for example to render Haskell @do@ blocks.
-  --
-  --   @BSExplicit@ displays blocks explicitly via characters for block start, block end, and item separation.
-  --   This can be used for example to render C-style brace and semicolon delimited blocks with @BSExplicit '{' ';' '}'@.
-  --
-  --   Default: @BSImplicit@
-  , _configBlockStyle :: BlockStyle
   }
 
-data BlockStyle = BSImplicit | BSExplicit Char Char Char
 
 instance Default Config where
   def = Config
-    -- { configSpacesPerIndent = 2
     { _configMaxLineWidth    = 80
     , _configInitPrecedence  = -1
     , _configInitIndent      = 0
     , _configIndentChar      = ' '
     , _configIndentDepth     = 2
     , _configIndentAfterBreaks = 2
-    , _configBlockStyle      = BSImplicit
     }
 
 makeLenses ''Config
 
 data PrettySt = PrettySt
-  { _indentation  :: Int
-  , _precedence   :: Int
-  , _assoc        :: Assoc
-  , _maxLineWidth :: Int
-  , _text         :: NE.NonEmpty String
+  { _indentation       :: Int
+  , _precedence        :: Int
+  , _assoc             :: Assoc
+  , _maxLineWidth      :: Int
+  , _text              :: NE.NonEmpty String
+  , _indentChar        :: Char
+  , _indentDepth       :: Int
+  , _indentAfterBreaks :: Int
   }
 
 stFromConfig :: Config → PrettySt
 stFromConfig c = PrettySt
-  { _indentation = _configInitIndent c
-  , _precedence = _configInitPrecedence c
-  , _assoc = AssocN
-  , _maxLineWidth =(_configMaxLineWidth c)
-  , _text = "" :| []
+  { _indentation       = _configInitIndent c
+  , _precedence        = _configInitPrecedence c
+  , _assoc             = AssocN
+  , _maxLineWidth      = _configMaxLineWidth c
+  , _text              = "" :| []
+  , _indentChar        = _configIndentChar c
+  , _indentDepth       = _configIndentDepth c
+  , _indentAfterBreaks = _configIndentAfterBreaks c
   }
 
 makeLenses ''PrettySt
@@ -247,58 +241,69 @@ head1L = lens NE.head (\(_ :| xs) x → x :| xs)
 tail1L :: Lens' (NE.NonEmpty a) [a]
 tail1L = lens NE.tail (\(x :| _) xs → x :| xs)
 
+charsBeforeWord :: Int -> Char -> String -> Int
+charsBeforeWord nWords0 cIndent s0 =
+  go s0 nWords0
+ where
+  go s n =
+    length sIndent + if n == 0 then 0 else length sWord + go sAfterWord (n-1)
+   where
+    (sIndent, sBeforeWord) = break (/= cIndent) s
+    (sWord, sAfterWord) = break (== cIndent) sBeforeWord
+
+charsBeforeWordM :: Int -> PrettyM Int
+charsBeforeWordM n0 = do
+  cIndent ← use indentChar
+  curText ← use $ text . head1L
+  pure $ charsBeforeWord n0 cIndent curText
+
+-- Isomorphic lines and unlines implementations
+lines' :: String → [String]
+lines' = go "" where
+  go s = \case
+    ""               → [s]
+    c:cs | c == '\n' → s : go "" cs
+         | otherwise → go (s++[c]) cs
+
+unlines' :: [String] → String
+unlines' = \case
+  []   → ""
+  [x]  → x
+  x:xs → x ++ '\n' : unlines' xs
+
+isWS, isNoWS :: Char → Bool
+isWS   = (`elem` [' ', '\t'])
+isNoWS = not . isWS
+
 instance Pretty String where
-  pp s' = do
-    text . head1L %= (++s')
-    s ← use $ text . head1L
-    w ← use maxLineWidth
-    when (w < length s) $ do
-      let (s1, s2) = splitAt w s
-      let (s12, s11) = both %~ reverse $ break (==' ') $ reverse s1
-      let (line, rest)
-            | all (== ' ') s11 = _1 %~ (s1++) $ break (==' ') s2
-            | otherwise = (s11, s12 ++ s2)
-      text . head1L .= line
-      unless (all (== ' ') rest) $ indented $ indented $ do nl; pp rest
+  pp = go . lines' where
+    go :: [String] -> PrettyM ()
+    go []     = pure ()
+    go [s]    = ppLine True s
+    go (s:ss) = do ppLine True s; nl; go ss
 
--- curLineHasSpace :: PrettyM Bool
--- curLineHasSpace = do
---   s ← use $ text . head1L
---   w ← use maxLineWidth
---   pure $ w > length s
-
--- trySplitAtLastSpace :: String → Maybe (String, String)
--- trySplitAtLastSpace s =
---   let (indent, rest) = splitIndent s
---   in case splitAtChar ' ' rest of
---       [] → Nothing
---       xs → Just (init xs, last xs)
-
--- splitAtChar :: Char → String → [String]
--- splitAtChar = go "" where
---   go xs = \case
---     c:cs | c == c0   → xs : go "" cs
---          | otherwise → go (xs++[c]) cs
---     []               → []
-
--- splitIndent :: String → (String, String)
--- splitIndent = undefined
-
--- instance Pretty Char where
---   pp c = curLineHasSpace >>= \case
---     True → text . head1L %~ (++[c])
---     False → do
---       carry ←
---       text %~ (carry ++ [c] :|)
---     case
---     when b $ do
---       let (s1, s2) = splitAt w s
---       let (s12, s11) = both %~ reverse $ break (==' ') $ reverse s1
---       let (line, rest)
---             | all (== ' ') s11 = _1 %~ (s1++) $ break (==' ') s2
---             | otherwise = (s11, s12 ++ s2)
---       text . head1L .= line
---       unless (all (== ' ') rest) $ indented $ indented $ do nl; pp rest
+    ppLine :: Bool -> String -> PrettyM ()
+    ppLine first s = do
+      text . head1L %= (++s)
+      curLine ← use $ text . head1L
+      -- We have to allow at least indentation + 1 word, otherwise indenting after
+      -- line break due to line continuation can cause infinite loop
+      maxLineLength ← max <$> charsBeforeWordM 1 <*> use maxLineWidth
+      when (length curLine > maxLineLength) $ do
+        let (curLine', lineRest) = splitAt maxLineLength curLine -- length s1 == maxLineLength
+        let (wordRest, curLine'')
+              | isNoWS (head lineRest)
+                = both %~ reverse $ break (==' ') $ reverse curLine'
+              | otherwise
+                = ("", curLine')
+        text . head1L .= curLine''
+        -- Increase indentation once after the first forced line break, this results into:
+        --   this line was too long
+        --       still the first line
+        --       it won't stop
+        let f | first = indented . indented
+              | otherwise = id
+        f $ do nl; ppLine False $ dropWhile isWS $ wordRest ++ lineRest
 
 instance Pretty Char   where pp = pp . (:[])
 instance Pretty Int    where pp = pp . show
@@ -398,12 +403,12 @@ unindent = indentation %= subtract 1
 --
 --   > indented a = indent +> a +> unindent
 indented :: Pretty a => a → PrettyM ()
-indented a = indent +> a +> unindent
+indented a = do indent; pp a; unindent
 
 addIndent :: PrettyM ()
 addIndent = do
   i <- use indentation
-  pp $ replicate (i*2) ' '
+  text . head1L %= (++ replicate (i*2) ' ')
 
 -- Associativity & Fixity ------------------------------------------------------
 
