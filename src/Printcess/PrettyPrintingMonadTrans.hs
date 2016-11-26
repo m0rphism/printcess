@@ -251,10 +251,16 @@ class Monad m => Pretty a m where
   -- | Pretty print an @a@ as a 'PrettyM' action.
   pp :: a → PrettyT m ()
 
+head1L :: Lens' (NE.NonEmpty a) a
+head1L = lens NE.head (\(_ :| xs) x → x :| xs)
+
+tail1L :: Lens' (NE.NonEmpty a) [a]
+tail1L = lens NE.tail (\(x :| _) xs → x :| xs)
+
 instance Pretty String m where
   pp s' = do
-    text . NE.headL %= (++s')
-    s ← use $ text . NE.headL
+    text . head1L %= (++s')
+    s ← use $ text . head1L
     w ← use maxLineWidth
     when (w < length s) $ do
       let (s1, s2) = splitAt w s
@@ -262,12 +268,12 @@ instance Pretty String m where
       let (line, rest)
             | all (== ' ') s11 = _1 %~ (s1++) $ break (==' ') s2
             | otherwise = (s11, s12 ++ s2)
-      text . NE.headL .= line
+      text . head1L .= line
       unless (all (== ' ') rest) $ indented $ indented $ do nl; pp rest
 
 -- curLineHasSpace :: PrettyM Bool
 -- curLineHasSpace = do
---   s ← use $ text . NE.headL
+--   s ← use $ text . head1L
 --   w ← use maxLineWidth
 --   pure $ w > length s
 
@@ -290,7 +296,7 @@ instance Pretty String m where
 
 -- instance Pretty Char where
 --   pp c = curLineHasSpace >>= \case
---     True → text . NE.headL %~ (++[c])
+--     True → text . head1L %~ (++[c])
 --     False → do
 --       carry ←
 --       text %~ (carry ++ [c] :|)
@@ -301,7 +307,7 @@ instance Pretty String m where
 --       let (line, rest)
 --             | all (== ' ') s11 = _1 %~ (s1++) $ break (==' ') s2
 --             | otherwise = (s11, s12 ++ s2)
---       text . NE.headL .= line
+--       text . head1L .= line
 --       unless (all (== ' ') rest) $ indented $ indented $ do nl; pp rest
 
 instance Pretty Char   m where pp = pp . (:[])

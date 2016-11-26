@@ -34,7 +34,6 @@ library
   exposed-modules:
     Printcess.PrettyPrinting
     Printcess.Tutorial
-    Data.List.NonEmpty
 
 executable printcess-example
   hs-source-dirs:
