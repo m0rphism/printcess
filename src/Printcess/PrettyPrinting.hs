@@ -60,18 +60,8 @@ import qualified Data.Map as M
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
 
-data PrettySt = PrettySt
-  { _indentation  :: Int
-  , _precedence   :: Int
-  , _assoc        :: Assoc
-  , _maxLineWidth :: Int
-  , _text         :: NE.NonEmpty String
-  }
-
 data Assoc = AssocN | AssocL | AssocR
   deriving (Eq, Ord, Read, Show)
-
-makeLenses ''PrettySt
 
 -- Config ----------------------------------------------------------------------
 
@@ -166,6 +156,25 @@ instance Default Config where
 
 makeLenses ''Config
 
+data PrettySt = PrettySt
+  { _indentation  :: Int
+  , _precedence   :: Int
+  , _assoc        :: Assoc
+  , _maxLineWidth :: Int
+  , _text         :: NE.NonEmpty String
+  }
+
+stFromConfig :: Config → PrettySt
+stFromConfig c = PrettySt
+  { _indentation = _configInitIndent c
+  , _precedence = _configInitPrecedence c
+  , _assoc = AssocN
+  , _maxLineWidth =(_configMaxLineWidth c)
+  , _text = "" :| []
+  }
+
+makeLenses ''PrettySt
+
 -- Pretty Printing -------------------------------------------------------------
 
 -- | Render a 'Pretty' printable @a@ to 'String' using a 'Config', that
@@ -181,11 +190,7 @@ pretty c
   . reverse
   . NE.toList
   . view text
-  . flip execState (PrettySt (_configInitIndent c)
-                             (_configInitPrecedence c)
-                             AssocN
-                             (_configMaxLineWidth c)
-                             ("" :| []))
+  . (`execState` stFromConfig c)
   . runPrettyM
   . pp
   . (addIndent +>) -- Add indentation to the first line.
