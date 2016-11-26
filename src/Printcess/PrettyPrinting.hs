@@ -59,8 +59,6 @@ import qualified Data.Map as M
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
 
-import Debug.Trace
-
 data Assoc = AssocN | AssocL | AssocR
   deriving (Eq, Ord, Read, Show)
 
@@ -301,7 +299,8 @@ instance Pretty String where
         --   this line was too long
         --       still the first line
         --       it won't stop
-        let f | first = indented . indented
+        i ← use indentAfterBreaks
+        let f | first     = foldl (.) id (replicate i indented)
               | otherwise = id
         f $ do nl; ppLine False $ dropWhile isWS $ wordRest ++ lineRest
 
@@ -408,7 +407,9 @@ indented a = do indent; pp a; unindent
 addIndent :: PrettyM ()
 addIndent = do
   i <- use indentation
-  text . head1L %= (++ replicate (i*2) ' ')
+  c <- use indentChar
+  d <- use indentDepth
+  text . head1L %= (++ replicate (i*d) c)
 
 -- Associativity & Fixity ------------------------------------------------------
 
