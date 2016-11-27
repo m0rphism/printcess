@@ -14,36 +14,47 @@
 module Printcess.PrettyPrinting (
   -- * Overview
   -- $overview
+
   -- * Rendering
   pretty,
   prettyPrint,
+
   -- * Config
   Config(..),
   configMaxLineWidth, configInitPrecedence, configInitIndent,
   configIndentChar, configIndentDepth, configIndentAfterBreaks,
   Data.Default.def,
+
   -- * Type Classes
   Pretty(..), Pretty1(..), Pretty2(..),
+
   -- * Monad
   PrettyM,
+
   -- * Basic Combinators
   (+>),
   (++>),
+
   -- * Indentation
   indent, unindent, indented,
+
   -- * Associativity & Fixity
   assocL, assocR, assocN,
   left, right, inner, AssocAnn(..),
+
   -- * Folding Lists of Printable Things
   sepBy, interleaveL, interleaveR,
   block, block',
   ppList, ppSExp,
+
   -- * Folding Maps of Printable Things
   ppListMap, ppMap,
+
   -- * Misc
   ifPrint,
   ppParen,
   ppBar,
+
   -- * Constants
   nl, sp,
   ) where
@@ -60,15 +71,34 @@ import Data.List.NonEmpty (NonEmpty(..))
 {- $overview
     The main features of the @printcess@ pretty printing library are
 
-    * Indentation.
+    *   Indentation.
 
-      > pretty def $ "do" +> nl +> block [ "putStrLn hello"
-      >                                  , "putStrLn world" ]
-      prints
+        > pretty def $ "do" +> block [ "putStrLn hello"
+        >                            , "putStrLn world" ]
+        prints
 
-      > do
-      >   putStrLn hello
-      >   putStrLn world
+        > do
+        >   putStrLn hello
+        >   putStrLn world
+
+    *   Parenthesis-Elision according to fixity and associativity of operators.
+
+        > let eAbs x  e  = assocR 0 $ "λ" +> x +> "." ++> R e
+        >     eApp e1 e2 = assocL 9 $ L e1 ++> R e2
+        > in pretty def $ eAbs "x" $ eAbs "y" $ eApp (eApp "x" "y") (eApp "x" "y")
+        prints
+
+        > λx. λy. x y (x y)
+
+    *   Automatic line breaks after current line exceeds a maximum text width.
+
+        > pretty (def & configMaxLineWidth .~ 10) "foo bar baz boo r"
+        prints
+
+        > foo bar
+        >     baz
+        >     boo r
+
 -}
 
 -- Config ----------------------------------------------------------------------
