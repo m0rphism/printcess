@@ -239,21 +239,21 @@ head1L = lens NE.head (\(_ :| xs) x → x :| xs)
 tail1L :: Lens' (NE.NonEmpty a) [a]
 tail1L = lens NE.tail (\(x :| _) xs → x :| xs)
 
-charsBeforeWord :: Int -> Char -> String -> Int
+charsBeforeWord :: Int -> (Char -> Bool) -> String -> Int
 charsBeforeWord nWords0 cIndent s0 =
   go s0 nWords0
  where
   go s n =
     length sIndent + if n == 0 then 0 else length sWord + go sAfterWord (n-1)
    where
-    (sIndent, sBeforeWord) = break (/= cIndent) s
-    (sWord, sAfterWord) = break (== cIndent) sBeforeWord
+    (sIndent, sBeforeWord) = break (not . cIndent) s
+    (sWord, sAfterWord) = break cIndent sBeforeWord
 
 charsBeforeWordM :: Int -> PrettyM Int
 charsBeforeWordM n0 = do
   cIndent ← use indentChar
   curText ← use $ text . head1L
-  pure $ charsBeforeWord n0 cIndent curText
+  pure $ charsBeforeWord n0 (`elem` [' ', '\t', cIndent]) curText
 
 -- Isomorphic lines and unlines implementations
 lines' :: String → [String]

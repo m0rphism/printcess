@@ -31,11 +31,13 @@ main = hspec $ do
     it "breaks too long lines" $
       pretty (def & configMaxLineWidth .~ 12) "foo bar baz boo r"
         `shouldBe` "foo bar baz \n    boo r"
+    it "breaks too long lines & setting indentChar works" $
+      pretty (def & configMaxLineWidth .~ 10 & configIndentChar .~ '~') "foo bar baz boo r"
+        `shouldBe` "foo bar \n~~~~baz \n~~~~boo r"
   describe "Lambda Calculus" $ do
     it "respects associativity" $
       pretty def e1
         `shouldBe` "λx. λy. x y (x y)"
-
 
 data Expr
   = EVar String
