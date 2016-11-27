@@ -20,10 +20,12 @@ module Printcess.PrettyPrinting (
   prettyPrint,
 
   -- * Config
-  Config(..),
-  configMaxLineWidth, configInitPrecedence, configInitIndent,
-  configIndentChar, configIndentDepth, configIndentAfterBreaks,
-  def,
+  Config,
+  -- ** Lenses
+  cMaxLineWidth, cInitPrecedence, cInitIndent,
+  cIndentChar, cIndentDepth, cIndentAfterBreaks,
+  -- ** Mutation
+  defConfig,
   State, (.=),
 
   -- * Type Classes
@@ -75,8 +77,8 @@ import Data.List.NonEmpty (NonEmpty(..))
 
     *   Indentation.
 
-        > pretty def $ "do" +> block [ "putStrLn hello"
-        >                            , "putStrLn world" ]
+        > pretty defConfig $ "do" +> block [ "putStrLn hello"
+        >                                  , "putStrLn world" ]
         prints
 
         > do
@@ -87,14 +89,14 @@ import Data.List.NonEmpty (NonEmpty(..))
 
         > let eAbs x  e  = assocR 0 $ "λ" +> x +> "." ++> R e
         >     eApp e1 e2 = assocL 9 $ L e1 ++> R e2
-        > in pretty def $ eAbs "x" $ eAbs "y" $ eApp (eApp "x" "y") (eApp "x" "y")
+        > in pretty defConfig $ eAbs "x" $ eAbs "y" $ eApp (eApp "x" "y") (eApp "x" "y")
         prints
 
         > λx. λy. x y (x y)
 
     *   Automatic line breaks after current line exceeds a maximum text width.
 
-        > pretty (def & configMaxLineWidth .~ 10) "foo bar baz boo r"
+        > pretty (cMaxLineWidth .= 10) "foo bar baz boo r"
         prints
 
         > foo bar
@@ -130,60 +132,71 @@ import Data.List.NonEmpty (NonEmpty(..))
 -- >   bar
 -- >   baz
 data Config = Config
-  -- { configSpacesPerIndent :: Int
-  {
-  -- | When a line gets longer, it is broken after the latest space,
-  --   that still allows the line to remain below this maximum.
-  --
-  --  Default: @80@
-    _configMaxLineWidth :: Int
-  -- | Precendence level to start pretty printing with.
-  --
-  --  Default: @(-1)@
-  , _configInitPrecedence :: Int
-  -- | Indentation level to start pretty printing with.
-  --
-  --   Default: @0@
-  , _configInitIndent :: Int
-  -- | The character to indent after line breaks with. Usually @' '@ for spaces
-  --   or @'\t'@ for tabs.
-  --
-  --   Default: @' '@
-  , _configIndentChar :: Char
-  -- | How many characters to indent after line breaks with.
-  --
-  --   Default: @2@
-  , _configIndentDepth :: Int
-  -- | How much to increase indentation when a line break occurs because @configMaxLineWidth@ was exceeded.
-  --
-  --   Assuming the line to print has to be broken multiple times, the
-  --   indentation of all resulting lines, except the first one, is increased by this amount.
-  --   For example @"foo bar baz boo"@ may be printed to
-  --
-  --   > foo bar
-  --   >     baz
-  --   >     boo
-  --
-  --   using default configuration with @configMaxLineWidth .~ 8@.
-  --
-  --   Default: @2@
+  { _configMaxLineWidth      :: Int
+  , _configInitPrecedence    :: Int
+  , _configInitIndent        :: Int
+  , _configIndentChar        :: Char
+  , _configIndentDepth       :: Int
   , _configIndentAfterBreaks :: Int
   }
 
-def :: State Config ()
-def = pure ()
+def :: Config
+def = Config
+  { _configMaxLineWidth      = 80
+  , _configInitPrecedence    = -1
+  , _configInitIndent        = 0
+  , _configIndentChar        = ' '
+  , _configIndentDepth       = 2
+  , _configIndentAfterBreaks = 2
+  }
 
-defConfig :: Config
-defConfig = Config
-    { _configMaxLineWidth    = 80
-    , _configInitPrecedence  = -1
-    , _configInitIndent      = 0
-    , _configIndentChar      = ' '
-    , _configIndentDepth     = 2
-    , _configIndentAfterBreaks = 2
-    }
+defConfig :: State Config ()
+defConfig = pure ()
 
 makeLenses ''Config
+
+-- | When a line gets longer, it is broken after the latest space,
+--   that still allows the line to remain below this maximum.
+--
+--  Default: @80@
+cMaxLineWidth :: Lens' Config Int
+cMaxLineWidth = configMaxLineWidth
+-- | Precendence level to start pretty printing with.
+--
+--  Default: @(-1)@
+cInitPrecedence :: Lens' Config Int
+cInitPrecedence = configInitPrecedence
+-- | Indentation level to start pretty printing with.
+--
+--   Default: @0@
+cInitIndent :: Lens' Config Int
+cInitIndent = configInitIndent
+-- | The character to indent after line breaks with. Usually @' '@ for spaces
+--   or @'\t'@ for tabs.
+--
+--   Default: @' '@
+cIndentChar :: Lens' Config Char
+cIndentChar = configIndentChar
+-- | How many characters to indent after line breaks with.
+--
+--   Default: @2@
+cIndentDepth :: Lens' Config Int
+cIndentDepth = configIndentDepth
+-- | How much to increase indentation when a line break occurs because @configMaxLineWidth@ was exceeded.
+--
+--   Assuming the line to print has to be broken multiple times, the
+--   indentation of all resulting lines, except the first one, is increased by this amount.
+--   For example @"foo bar baz boo"@ may be printed to
+--
+--   > foo bar
+--   >     baz
+--   >     boo
+--
+--   using default configuration with @configMaxLineWidth .~ 8@.
+--
+--   Default: @2@
+cIndentAfterBreaks :: Lens' Config Int
+cIndentAfterBreaks = configIndentAfterBreaks
 
 data Assoc = AssocN | AssocL | AssocR
   deriving (Eq, Ord, Read, Show)
@@ -220,7 +233,7 @@ makeLenses ''PrettySt
 --
 --   The following example uses the default configuration to render @1@:
 --
---   > pretty def (1 :: Int)  -- evaluates to "1"
+--   > pretty defConfig (1 :: Int)  -- evaluates to "1"
 pretty :: Pretty a => State Config () → a → String
 pretty c
   = concat
@@ -228,7 +241,7 @@ pretty c
   . reverse
   . NE.toList
   . view text
-  . (`execState` stFromConfig (execState c defConfig))
+  . (`execState` stFromConfig (execState c def))
   . runPrettyM
   . pp
   . (addIndent +>) -- Add indentation to the first line.
@@ -254,7 +267,7 @@ prettyPrint c = liftIO . putStrLn . pretty c
 -- The library provides instances for some base types, including @String@ and @Int@,
 -- which are used in the following example to print @"foo"@ in sequence with @1@:
 --
--- > pretty def ("foo" +> 1)    -- evaluates to "foo1"
+-- > pretty defConfig ("foo" +> 1)    -- evaluates to "foo1"
 --
 -- Consider a simple data type for integer arithmetic
 --
@@ -274,7 +287,7 @@ prettyPrint c = liftIO . putStrLn . pretty c
 -- >     EInt i     → pp i  -- Use the Pretty instance for Int
 -- >     EAdd e1 e2 → "(" +> e1 ++> "+" ++> e2 +> ")"
 --
--- and then render it to @String@ with @pretty def expr@.
+-- and then render it to @String@ with @pretty defConfig expr@.
 class Pretty a where
   -- | Pretty print an @a@ as a 'PrettyM' action.
   pp :: a → PrettyM ()
@@ -399,7 +412,7 @@ instance a ~ () => Monoid (PrettyM a) where
 --
 --   Example:
 --
---   > pretty def $ "x" +> 1  -- ↪ "x1"
+--   > pretty defConfig $ "x" +> 1  -- ↪ "x1"
 --
 --   Convenience function, defined as
 --
@@ -411,7 +424,7 @@ a +> b = pp a >> pp b
 --
 --   Example:
 --
---   > pretty def $ "x" ++> 1  -- ↪ "x 1"
+--   > pretty defConfig $ "x" ++> 1  -- ↪ "x 1"
 --
 --   Convenience function, defined as
 --
@@ -433,10 +446,10 @@ unindent = (indentation -=) =<< use indentDepth
 --
 --   Example:
 --
---   > pretty def $ "while (true) {" +>
+--   > pretty defConfig $ "while (true) {" +>
 --   >              indented (nl +> "f();" +> nl +> "g();") +>
 --   >              nl +> "}"
---   > ↪ pretty def $ "while (true) {" +>
+--   > ↪ pretty defConfig $ "while (true) {" +>
 --   >              block ["f();", "g();"] +>
 --   >              nl +> "}"
 --   > ↪ "while (true) {
@@ -540,9 +553,9 @@ assocDir a ma = do
 --
 --   Examples:
 --
---   > pretty def $ []         `sepBy` ","  -- ↪ ""
---   > pretty def $ ["x"]      `sepBy` ","  -- ↪ "x"
---   > pretty def $ ["x", "y"] `sepBy` ","  -- ↪ "x,y"
+--   > pretty defConfig $ []         `sepBy` ","  -- ↪ ""
+--   > pretty defConfig $ ["x"]      `sepBy` ","  -- ↪ "x"
+--   > pretty defConfig $ ["x", "y"] `sepBy` ","  -- ↪ "x,y"
 sepBy :: (Pretty a, Pretty b) => [b] → a → PrettyM ()
 sepBy as s = sepByA_ (map pp as) (pp s)
 
@@ -563,9 +576,9 @@ sepByL (s:ss) s' = s : s' : sepByL ss s'
 --
 --   Examples:
 --
---   > pretty def $ interleaveL "," []          -- ↪ ""
---   > pretty def $ interleaveL "," ["x"]       -- ↪ ",x"
---   > pretty def $ interleaveL "," ["x", "y"]  -- ↪ ",x,y"
+--   > pretty defConfig $ interleaveL "," []          -- ↪ ""
+--   > pretty defConfig $ interleaveL "," ["x"]       -- ↪ ",x"
+--   > pretty defConfig $ interleaveL "," ["x", "y"]  -- ↪ ",x,y"
 interleaveL :: (Pretty a, Pretty b) => a → [b] → PrettyM ()
 interleaveL a bs = fold $ interleaveL' (pp a) (pp <$> bs)
 
@@ -573,9 +586,9 @@ interleaveL a bs = fold $ interleaveL' (pp a) (pp <$> bs)
 --
 --   Examples:
 --
---   > pretty def $ interleaveR "," []          -- ↪ ""
---   > pretty def $ interleaveR "," ["x"]       -- ↪ "x,"
---   > pretty def $ interleaveR "," ["x", "y"]  -- ↪ "x,y,"
+--   > pretty defConfig $ interleaveR "," []          -- ↪ ""
+--   > pretty defConfig $ interleaveR "," ["x"]       -- ↪ "x,"
+--   > pretty defConfig $ interleaveR "," ["x", "y"]  -- ↪ "x,y,"
 interleaveR :: (Pretty a, Pretty b) => a → [b] → PrettyM ()
 interleaveR a bs = fold $ interleaveR' (pp a) (pp <$> bs)
 
@@ -595,7 +608,7 @@ interleaveR' s = foldl (\xs x → xs ++ [x,s]) []
 --
 -- Example:
 --
--- > pretty def $ "do" ++> block ["putStrLn hello", "putStrLn world"]
+-- > pretty defConfig $ "do" ++> block ["putStrLn hello", "putStrLn world"]
 -- > -- ↪ "do
 -- > --      putStrLn hello
 -- > --      putStrLn world"
@@ -606,7 +619,7 @@ block  xs = indented $ nl +> (xs `sepBy` nl)
 --
 -- Example:
 --
--- > pretty def $ "do" ++> block' ["putStrLn hello", "putStrLn world"]
+-- > pretty defConfig $ "do" ++> block' ["putStrLn hello", "putStrLn world"]
 -- > -- ↪ "do putStrLn hello
 -- > --       putStrLn world"
 block' :: Pretty a => [a] → PrettyM ()
@@ -621,7 +634,7 @@ ifPrint False _ = pp ""
 --
 --   Example:
 --
---   > pretty def $ ppList [ "x", "y" ]  -- ↪ "[ x, y ]"
+--   > pretty defConfig $ ppList [ "x", "y" ]  -- ↪ "[ x, y ]"
 --
 --   Convenience function, defined as:
 --
@@ -633,7 +646,7 @@ ppList ps = "[" ++> (ps `sepBy` ", ") ++> "]"
 --
 --   Example:
 --
---   > pretty def $ ppListMap [ ("k1", "v1"), ("k2", "v2") ]  -- ↪ "[ k1 → v1, k2 → v2 ]"
+--   > pretty defConfig $ ppListMap [ ("k1", "v1"), ("k2", "v2") ]  -- ↪ "[ k1 → v1, k2 → v2 ]"
 --
 --   Convenience function, defined as:
 --
@@ -649,7 +662,7 @@ ppMap = ppListMap . M.assocs
 --
 --   Example:
 --
---   > pretty def $ ppParen "foo"  -- ↪ "(foo)"
+--   > pretty defConfig $ ppParen "foo"  -- ↪ "(foo)"
 --
 --   Convenience function, defined as:
 --
@@ -662,7 +675,7 @@ ppParen x = "(" +> x +> ")"
 --
 --   Example:
 --
---   > pretty def $ ppSExp ["+", "2", "3"]  -- ↪ "(+ 2 3)"
+--   > pretty defConfig $ ppSExp ["+", "2", "3"]  -- ↪ "(+ 2 3)"
 --
 --   Convenience function, defined as:
 --
@@ -675,7 +688,7 @@ ppSExp = ppParen . (`sepBy` sp)
 --
 --   Example:
 --
---   > pretty def $ ppBar '-' "Foo"
+--   > pretty defConfig $ ppBar '-' "Foo"
 --   > -- ↪ "----- Foo -------------------------------…"
 ppBar ∷ Pretty a => Char → a → PrettyM ()
 ppBar c s = do
@@ -694,14 +707,9 @@ sp :: PrettyM ()
 sp = pp " "
 
 test = do
-  putStrLn $
-    pretty def $ "do" ++> block [ "putStrLn hello"
-                                , "putStrLn world" ]
-  putStrLn $
-    pretty def $ "do" ++> block' [ "putStrLn hello"
-                                 , "putStrLn world" ]
+  putStrLn $ pretty defConfig $ "do" ++> block [ "putStrLn hello", "putStrLn world" ]
+  putStrLn $ pretty defConfig $ "do" ++> block' [ "putStrLn hello", "putStrLn world" ]
 
   let eAbs x e = assocR 0 $ "λ" +> x +> "." ++> R e
       eApp e1 e2 = assocL 6 $ L e1 ++> R e2
-  putStrLn $
-    pretty def $ eAbs "x" $ eAbs "y" $ eApp (eApp "x" "y") (eApp "x" "y")
+  putStrLn $ pretty defConfig $ eAbs "x" $ eAbs "y" $ eApp (eApp "x" "y") (eApp "x" "y")
