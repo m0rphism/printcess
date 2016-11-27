@@ -21,12 +21,9 @@ module Printcess.PrettyPrinting (
 
   -- * Config
   Config,
-  -- ** Lenses
-  cMaxLineWidth, cInitPrecedence, cInitIndent,
-  cIndentChar, cIndentDepth, cIndentAfterBreaks,
-  -- ** Mutation
+  cMaxLineWidth, cIndentChar, cIndentDepth, cIndentAfterBreaks,
+  cInitIndent, cInitPrecedence,
   defConfig,
-  State, (.=),
 
   -- * Type Classes
   Pretty(..), Pretty1(..), Pretty2(..),
@@ -34,7 +31,7 @@ module Printcess.PrettyPrinting (
   -- * Monad
   PrettyM,
 
-  -- * Basic Combinators
+  -- * Sequencing
   (+>),
   (++>),
 
@@ -54,14 +51,14 @@ module Printcess.PrettyPrinting (
   ppListMap, ppMap,
 
   -- * Misc
-  ifPrint,
   ppParen,
   ppBar,
 
   -- * Constants
   nl, sp,
 
-  test,
+  -- * Reexports
+  State, (.=),
   ) where
 
 import Control.Applicative
@@ -75,58 +72,66 @@ import Data.List.NonEmpty (NonEmpty(..))
 {- $overview
     The main features of the @printcess@ pretty printing library are
 
-    *   Indentation.
+    *   /Indentation/. Printing-actions are relative to the indentation level
+        of their context. Special actions can be used to control the indentation
+        level. Indentation is automatically inserted after newlines.
 
-        > pretty defConfig $ "do" +> block [ "putStrLn hello"
-        >                                  , "putStrLn world" ]
-        prints
+    *   /Automatic parenthesizing of mixfix operators/.
+        Special printing-actions can be used to specify the associativity
+        and fixity of operators and to mark the positions of their arguments.
+        This makes it easy to print for example @"λx. λy. x y (x y)"@
+        instead of @"(λx. (λy. ((x y) (x y))))"@.
 
-        > do
-        >   putStrLn hello
-        >   putStrLn world
+    *   /Automatic line breaks after exceeding a maximum line width/.
+        A maximum line width can be specified, after which lines are
+        automatically broken. If the break point is inside a word,
+        it is moved to the left until a white space character is reached.
+        This avoids splitting identifiers into two.
 
-    *   Parenthesis-Elision according to fixity and associativity of operators.
+    The following example showcases the above features by printing a lambda
+    calculus term. The reader is not expected to completely understand the
+    example at this point.
 
-        > let eAbs x  e  = assocR 0 $ "λ" +> x +> "." ++> R e
-        >     eApp e1 e2 = assocL 9 $ L e1 ++> R e2
-        > in pretty defConfig $ eAbs "x" $ eAbs "y" $ eApp (eApp "x" "y") (eApp "x" "y")
-        prints
-
-        > λx. λy. x y (x y)
-
-    *   Automatic line breaks after current line exceeds a maximum text width.
-
-        > pretty (cMaxLineWidth .= 10) "foo bar baz boo r"
-        prints
-
-        > foo bar
-        >     baz
-        >     boo r
+    > data Expr
+    >   = EVar String
+    >   | EAbs String Expr
+    >   | EApp Expr Expr
+    >
+    > instance Pretty Expr where
+    >   pp (EVar x)     = pp x
+    >   pp (EAbs x e)   = assocR 0 $ "λ" +> x +> "." ++> R e
+    >   pp (EApp e1 e2) = assocL 9 $ L e1 ++> R e2
+    >
+    > e1 :: Expr
+    > e1 = EAbs "x" $ EAbs "y" $ EApp (EApp (EVar "x") (EVar "y"))
+    >                                 (EApp (EVar "x") (EVar "y"))
+    >
+    > s1, s2 :: String
+    > s1 = pretty defConfig             e1    -- evaluates to "λx. λy. x y (x y)"
+    > s2 = pretty (cMaxLineWidth .= 12) e1    -- evaluates to "λx. λy. x y
+    >                                         --                   (x y)"
 
 -}
 
 -- Config ----------------------------------------------------------------------
 
--- | A @Config@ describes how something can be @Pretty@ printed, and hence is
--- consumed mainly by the @pretty@ function.
+-- | A @Config@ allows to specify various pretty printing options, e.g.
+-- the maximum line width.
 --
--- A @Config@ can be @Default@ constructed via the @def@ method and manipulated
--- via lenses for its fields. This is illustrated in the following example,
--- creating a @Config@ with maximum line width of @6@ and an initial indentation
--- level of @1@:
+-- As the rendering functions, like 'pretty', take updates to a default @Config@,
+-- only the lenses are exported.
 --
--- > import Control.Lens ((&), (.~))
--- > import Data.Default (def)
--- >
+-- A custom @Config@ can be specified as in the following example:
+--
 -- > foo :: String
 -- > foo = pretty config "foo bar baz"
--- >   where config = def & configMaxLineWidth .~ 6
--- >                      & configInitIndent   .~ 1
+-- >   where config = do cMaxLineWidth      .= 6
+-- >                     cInitIndent        .= 2
+-- >                     cIndentAfterBreaks .= 0
 --
 -- To preserve the maximum line width, the @String@ @"foo bar baz"@ is split
 -- into 3 lines by replacing spaces with newlines. Because of the initial
--- indentation, each line gets indented by one level, which here corresponds to
--- 2 spaces:
+-- indentation, each line gets indented by 2 spaces.
 --
 -- >   foo
 -- >   bar
@@ -147,9 +152,16 @@ def = Config
   , _configInitIndent        = 0
   , _configIndentChar        = ' '
   , _configIndentDepth       = 2
-  , _configIndentAfterBreaks = 2
+  , _configIndentAfterBreaks = 4
   }
 
+-- | Leaves the default @Config@ unchanged and returns @()@.
+--
+-- Convenience function defined as:
+--
+-- > defConfig = pure ()
+--
+-- See example in 'pretty'.
 defConfig :: State Config ()
 defConfig = pure ()
 
@@ -158,45 +170,57 @@ makeLenses ''Config
 -- | When a line gets longer, it is broken after the latest space,
 --   that still allows the line to remain below this maximum.
 --
---  Default: @80@
+--   If there is no such space, an over-long line with a single indented word is
+--   printed.
+--
+--   This guarantees both progress and not to break identifiers into parts.
+--
+--   Default: @80@
 cMaxLineWidth :: Lens' Config Int
 cMaxLineWidth = configMaxLineWidth
--- | Precendence level to start pretty printing with.
---
---  Default: @(-1)@
-cInitPrecedence :: Lens' Config Int
-cInitPrecedence = configInitPrecedence
--- | Indentation level to start pretty printing with.
---
---   Default: @0@
-cInitIndent :: Lens' Config Int
-cInitIndent = configInitIndent
--- | The character to indent after line breaks with. Usually @' '@ for spaces
---   or @'\t'@ for tabs.
+
+-- | The character used for indentation.
+--   Usually @' '@ for spaces or @'\t'@ for tabs.
 --
 --   Default: @' '@
 cIndentChar :: Lens' Config Char
 cIndentChar = configIndentChar
--- | How many characters to indent after line breaks with.
+
+-- | How many 'cIndentChar' characters for one indentation level.
 --
 --   Default: @2@
 cIndentDepth :: Lens' Config Int
 cIndentDepth = configIndentDepth
--- | How much to increase indentation when a line break occurs because @configMaxLineWidth@ was exceeded.
+
+-- | How many 'cIndentChar' characters to indent additionally, when a line break
+--   occurs, because 'cMaxLineWidth' was exceeded.
 --
 --   Assuming the line to print has to be broken multiple times, the
 --   indentation of all resulting lines, except the first one, is increased by this amount.
---   For example @"foo bar baz boo"@ may be printed to
+--   For example
+--
+--   > pretty (do cMaxLineWidth .= 8; cIndentAfterBreaks .= 4) "foo bar baz boo"
+--   evaluates to
 --
 --   > foo bar
 --   >     baz
 --   >     boo
 --
---   using default configuration with @configMaxLineWidth .~ 8@.
---
---   Default: @2@
+--   Default: @4@
 cIndentAfterBreaks :: Lens' Config Int
 cIndentAfterBreaks = configIndentAfterBreaks
+
+-- | Indentation level to start pretty printing with.
+--
+--   Default: @0@
+cInitIndent :: Lens' Config Int
+cInitIndent = configInitIndent
+
+-- | Precendence level to start pretty printing with.
+--
+--  Default: @(-1)@
+cInitPrecedence :: Lens' Config Int
+cInitPrecedence = configInitPrecedence
 
 data Assoc = AssocN | AssocL | AssocR
   deriving (Eq, Ord, Read, Show)
@@ -229,12 +253,14 @@ makeLenses ''PrettySt
 -- Pretty Printing -------------------------------------------------------------
 
 -- | Render a 'Pretty' printable @a@ to 'String' using a 'Config', that
---   specifies how the @a@ should be rendered.
---
---   The following example uses the default configuration to render @1@:
+--   specifies how the @a@ should be rendered. For example
 --
 --   > pretty defConfig (1 :: Int)  -- evaluates to "1"
-pretty :: Pretty a => State Config () → a → String
+pretty
+  :: Pretty a
+  => State Config () -- ^ Changes to the default pretty printing 'Config'.
+  -> a               -- ^ A 'Pretty' printable @a@.
+  -> String          -- ^ The pretty printed @a@.
 pretty c
   = concat
   . (`sepByL` "\n")
@@ -253,18 +279,23 @@ pretty c
 --   Convenience function, defined as:
 --
 --   > prettyPrint c = liftIO . putStrLn . pretty c
-prettyPrint :: (MonadIO m, Pretty a) => State Config () → a → m ()
-prettyPrint c = liftIO . putStrLn . pretty c
+prettyPrint
+  :: (MonadIO m, Pretty a)
+  => State Config () -- ^ Changes to the default pretty printing 'Config'.
+  -> a               -- ^ A 'Pretty' printable @a@.
+  -> m ()            -- ^ An 'IO' action pretty printing the @a@ to @stdout@.
+prettyPrint c =
+  liftIO . putStrLn . pretty c
 
 -- Type Classes ----------------------------------------------------------------
 
--- | The 'Pretty' type class describes pretty printable types.
+-- | Instanciating this class for a type, declares how values of that type
+-- should be pretty printed.
 --
--- Types which instanciate this class can be combined with each other, e.g.
--- printed in sequence with @(+>)@, and rendered to @String@ using the @pretty@
--- function.
+-- As pretty printing may depend on some context, e.g. the current indentation
+-- level, a 'State' monad for pretty printing ('PrettyM') is used.
 --
--- The library provides instances for some base types, including @String@ and @Int@,
+-- The library provides instances for some base types, including 'String' and 'Int',
 -- which are used in the following example to print @"foo"@ in sequence with @1@:
 --
 -- > pretty defConfig ("foo" +> 1)    -- evaluates to "foo1"
@@ -280,14 +311,14 @@ prettyPrint c = liftIO . putStrLn . pretty c
 --
 -- > expr = EAdd (EInt 1) (EAdd (EInt 2) (EInt 3))
 --
--- as @"(1+(2+3))"@, we can make @Expr@ an instance of the @Pretty@ class
+-- as @"(1+(2+3))"@, we can make @Expr@ an instance of the 'Pretty' class
 --
 -- > instance Pretty Expr where
 -- >   pp = \case
 -- >     EInt i     → pp i  -- Use the Pretty instance for Int
 -- >     EAdd e1 e2 → "(" +> e1 ++> "+" ++> e2 +> ")"
 --
--- and then render it to @String@ with @pretty defConfig expr@.
+-- and then render it to 'String' with 'pretty' 'defConfig' @expr@.
 class Pretty a where
   -- | Pretty print an @a@ as a 'PrettyM' action.
   pp :: a → PrettyM ()
@@ -359,7 +390,7 @@ instance Pretty String where
         --       still the first line
         --       it won't stop
         i ← use indentAfterBreaks
-        let f | first     = foldl (.) id (replicate i indented)
+        let f | first     = indentedBy i
               | otherwise = id
         f $ do nl; ppLine False $ dropWhile isWS $ wordRest ++ lineRest
 
@@ -442,6 +473,14 @@ indent = (indentation +=) =<< use indentDepth
 unindent :: PrettyM ()
 unindent = (indentation -=) =<< use indentDepth
 
+-- | Increment indentation level.
+indentBy :: Int → PrettyM ()
+indentBy = (indentation +=)
+
+-- | Decrement indentation level.
+unindentBy :: Int → PrettyM ()
+unindentBy = (indentation -=)
+
 -- | Print an @a@ using an incremented indentation after newlines.
 --
 --   Example:
@@ -462,6 +501,9 @@ unindent = (indentation -=) =<< use indentDepth
 --   > indented a = indent +> a +> unindent
 indented :: Pretty a => a → PrettyM ()
 indented a = do indent; pp a; unindent
+
+indentedBy :: Pretty a => Int → a → PrettyM ()
+indentedBy i a = do indentBy i; pp a; unindentBy i
 
 addIndent :: PrettyM ()
 addIndent = do
@@ -625,11 +667,6 @@ block  xs = indented $ nl +> (xs `sepBy` nl)
 block' :: Pretty a => [a] → PrettyM ()
 block' xs = indentedToCurPos $ xs `sepBy` nl
 
--- | If @True@ print an @a@; if @False@ print @""@.
-ifPrint :: Pretty a => Bool → a → PrettyM ()
-ifPrint True  a = pp a
-ifPrint False _ = pp ""
-
 -- | Print a @[a]@ similar to its @Show@ instance.
 --
 --   Example:
@@ -705,11 +742,3 @@ nl = do
 -- | Print a space.
 sp :: PrettyM ()
 sp = pp " "
-
-test = do
-  putStrLn $ pretty defConfig $ "do" ++> block [ "putStrLn hello", "putStrLn world" ]
-  putStrLn $ pretty defConfig $ "do" ++> block' [ "putStrLn hello", "putStrLn world" ]
-
-  let eAbs x e = assocR 0 $ "λ" +> x +> "." ++> R e
-      eApp e1 e2 = assocL 6 $ L e1 ++> R e2
-  putStrLn $ pretty defConfig $ eAbs "x" $ eAbs "y" $ eApp (eApp "x" "y") (eApp "x" "y")
