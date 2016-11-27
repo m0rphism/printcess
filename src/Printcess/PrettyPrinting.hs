@@ -23,7 +23,8 @@ module Printcess.PrettyPrinting (
   Config(..),
   configMaxLineWidth, configInitPrecedence, configInitIndent,
   configIndentChar, configIndentDepth, configIndentAfterBreaks,
-  Data.Default.def,
+  def,
+  State, (.=),
 
   -- * Type Classes
   Pretty(..), Pretty1(..), Pretty2(..),
@@ -57,13 +58,14 @@ module Printcess.PrettyPrinting (
 
   -- * Constants
   nl, sp,
+
+  test,
   ) where
 
 import Control.Applicative
 import Control.Monad.State.Lazy
 import Control.Lens
 import Data.Foldable
-import Data.Default
 import qualified Data.Map as M
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
@@ -168,9 +170,11 @@ data Config = Config
   , _configIndentAfterBreaks :: Int
   }
 
+def :: State Config ()
+def = pure ()
 
-instance Default Config where
-  def = Config
+defConfig :: Config
+defConfig = Config
     { _configMaxLineWidth    = 80
     , _configInitPrecedence  = -1
     , _configInitIndent      = 0
@@ -217,14 +221,14 @@ makeLenses ''PrettySt
 --   The following example uses the default configuration to render @1@:
 --
 --   > pretty def (1 :: Int)  -- evaluates to "1"
-pretty :: Pretty a => Config → a → String
+pretty :: Pretty a => State Config () → a → String
 pretty c
   = concat
   . (`sepByL` "\n")
   . reverse
   . NE.toList
   . view text
-  . (`execState` stFromConfig c)
+  . (`execState` stFromConfig (execState c defConfig))
   . runPrettyM
   . pp
   . (addIndent +>) -- Add indentation to the first line.
@@ -236,7 +240,7 @@ pretty c
 --   Convenience function, defined as:
 --
 --   > prettyPrint c = liftIO . putStrLn . pretty c
-prettyPrint :: (MonadIO m, Pretty a) => Config → a → m ()
+prettyPrint :: (MonadIO m, Pretty a) => State Config () → a → m ()
 prettyPrint c = liftIO . putStrLn . pretty c
 
 -- Type Classes ----------------------------------------------------------------
@@ -676,7 +680,7 @@ ppSExp = ppParen . (`sepBy` sp)
 ppBar ∷ Pretty a => Char → a → PrettyM ()
 ppBar c s = do
   w ← use maxLineWidth
-  replicate 5 c ++> s ++> replicate (w - (7 + length (pretty def s))) c +> "\n"
+  replicate 5 c ++> s ++> replicate (w - (7 + length (pretty (pure ()) s))) c +> "\n"
 
 
 -- | Print a newline (line break).
@@ -688,3 +692,16 @@ nl = do
 -- | Print a space.
 sp :: PrettyM ()
 sp = pp " "
+
+test = do
+  putStrLn $
+    pretty def $ "do" ++> block [ "putStrLn hello"
+                                , "putStrLn world" ]
+  putStrLn $
+    pretty def $ "do" ++> block' [ "putStrLn hello"
+                                 , "putStrLn world" ]
+
+  let eAbs x e = assocR 0 $ "λ" +> x +> "." ++> R e
+      eApp e1 e2 = assocL 6 $ L e1 ++> R e2
+  putStrLn $
+    pretty def $ eAbs "x" $ eAbs "y" $ eApp (eApp "x" "y") (eApp "x" "y")

@@ -26,7 +26,6 @@ module Printcess.Tutorial (
   ) where
 
 import Printcess.PrettyPrinting
-import Control.Lens
 
 {- $introduction
     The @printcess@ library provides combinators for pretty printing.
@@ -152,5 +151,4 @@ main0 :: IO ()
 main0 = do
   prettyPrint def $ "Printcess Pretty Printing Example"
   prettyPrint def expr1
-  prettyPrint (def { _configMaxLineWidth = 20 }) expr2
-  prettyPrint (def & configMaxLineWidth .~ 20) expr2
+  prettyPrint (configMaxLineWidth .= 20) expr2

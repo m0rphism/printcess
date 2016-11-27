@@ -11,28 +11,28 @@ main = hspec $ do
       pretty def "foo" `shouldBe` "foo"
   describe "automatic line breaks" $ do
     it "breaks too long lines" $
-      pretty (def & configMaxLineWidth .~ 10) "foo bar baz boo"
+      pretty (configMaxLineWidth .= 10) "foo bar baz boo"
         `shouldBe` "foo bar \n    baz \n    boo"
     it "breaks too long lines" $
-      pretty (def & configMaxLineWidth .~ 11) "foo bar baz boo"
+      pretty (configMaxLineWidth .= 11) "foo bar baz boo"
         `shouldBe` "foo bar baz\n    boo"
     it "breaks too long lines twice" $
-      pretty (def & configMaxLineWidth .~ 10) "foo bar baz boo r"
+      pretty (configMaxLineWidth .= 10) "foo bar baz boo r"
         `shouldBe` "foo bar \n    baz \n    boo r"
     it "breaks too long lines four times" $
-      pretty (def & configMaxLineWidth .~ 10) "foo bar baz boo raz roo"
+      pretty (configMaxLineWidth .= 10) "foo bar baz boo raz roo"
         `shouldBe` "foo bar \n    baz \n    boo \n    raz \n    roo"
     it "breaks too long lines" $
-      pretty (def & configMaxLineWidth .~ 11) "foo bar baz boo r"
+      pretty (configMaxLineWidth .= 11) "foo bar baz boo r"
         `shouldBe` "foo bar baz\n    boo r"
     it "breaks too long lines twice" $
-      pretty (def & configMaxLineWidth .~ 11) "foo bar baz boo raz roo"
+      pretty (configMaxLineWidth .= 11) "foo bar baz boo raz roo"
         `shouldBe` "foo bar baz\n    boo raz\n    roo"
     it "breaks too long lines" $
-      pretty (def & configMaxLineWidth .~ 12) "foo bar baz boo r"
+      pretty (configMaxLineWidth .= 12) "foo bar baz boo r"
         `shouldBe` "foo bar baz \n    boo r"
     it "breaks too long lines & setting indentChar works" $
-      pretty (def & configMaxLineWidth .~ 10 & configIndentChar .~ '~') "foo bar baz boo r"
+      pretty (do configMaxLineWidth .= 10; configIndentChar .= '~') "foo bar baz boo r"
         `shouldBe` "foo bar \n~~~~baz \n~~~~boo r"
   describe "Lambda Calculus" $ do
     it "respects associativity" $

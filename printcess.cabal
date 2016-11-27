@@ -44,8 +44,7 @@ library
     template-haskell,
     transformers,
     unordered-containers >= 0.2.7.0,
-    prelude-extras,
-    data-default
+    prelude-extras
   ghc-options:
     -Wall -fno-warn-partial-type-signatures -fdefer-type-errors
   exposed-modules:
@@ -76,7 +75,6 @@ test-suite spec
     transformers,
     unordered-containers >= 0.2.7.0,
     prelude-extras,
-    data-default,
     HUnit,
     QuickCheck,
     hspec >= 1.5.3,
