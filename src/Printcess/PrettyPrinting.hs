@@ -1,7 +1,3 @@
-{-
-  TODO:
-    - support for different amounts of tabs or spaces per indent
--}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
