@@ -38,6 +38,13 @@ main = hspec $ do
     it "respects associativity" $
       pretty def e1
         `shouldBe` "λx. λy. x y (x y)"
+  describe "Blocks" $ do
+    it "blocks starting on next line" $
+      pretty def ("do" ++> block [ "ma", "mb" ])
+        `shouldBe` "do \n  ma\n  mb"
+    it "blocks starting on same line" $
+      pretty def ("do" ++> block' [ "ma", "mb" ])
+        `shouldBe` "do ma\n   mb"
 
 data Expr
   = EVar String

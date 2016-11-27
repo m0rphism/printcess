@@ -12,6 +12,8 @@
 {-# LANGUAGE LambdaCase, UnicodeSyntax, MultiWayIf, KindSignatures #-}
 
 module Printcess.PrettyPrinting (
+  -- * Overview
+  -- $overview
   -- * Rendering
   pretty,
   prettyPrint,
@@ -55,8 +57,19 @@ import qualified Data.Map as M
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
 
-data Assoc = AssocN | AssocL | AssocR
-  deriving (Eq, Ord, Read, Show)
+{- $overview
+    The main features of the @printcess@ pretty printing library are
+
+    * Indentation.
+
+      > pretty def $ "do" +> nl +> block [ "putStrLn hello"
+      >                                  , "putStrLn world" ]
+      prints
+
+      > do
+      >   putStrLn hello
+      >   putStrLn world
+-}
 
 -- Config ----------------------------------------------------------------------
 
@@ -137,6 +150,9 @@ instance Default Config where
     }
 
 makeLenses ''Config
+
+data Assoc = AssocN | AssocL | AssocR
+  deriving (Eq, Ord, Read, Show)
 
 data PrettySt = PrettySt
   { _indentation       :: Int
@@ -373,11 +389,11 @@ a ++> b = a +> sp +> b
 
 -- | Increment indentation level.
 indent :: PrettyM ()
-indent = indentation %= (+1)
+indent = (indentation +=) =<< use indentDepth
 
 -- | Decrement indentation level.
 unindent :: PrettyM ()
-unindent = indentation %= subtract 1
+unindent = (indentation -=) =<< use indentDepth
 
 -- | Print an @a@ using an incremented indentation after newlines.
 --
@@ -404,8 +420,20 @@ addIndent :: PrettyM ()
 addIndent = do
   i <- use indentation
   c <- use indentChar
-  d <- use indentDepth
-  text . head1L %= (++ replicate (i*d) c)
+  text . head1L %= (++ replicate i c)
+
+indentToCurPos :: PrettyM ()
+indentToCurPos = do
+  curLine ← use $ text . head1L
+  indentation .= length curLine
+
+indentedToCurPos :: PrettyM a → PrettyM a
+indentedToCurPos ma = do
+  i ← use indentation
+  indentToCurPos
+  a ← ma
+  indentation .= i
+  pure a
 
 -- Associativity & Fixity ------------------------------------------------------
 
@@ -548,7 +576,7 @@ block  xs = indented $ nl +> (xs `sepBy` nl)
 -- > -- ↪ "do putStrLn hello
 -- > --       putStrLn world"
 block' :: Pretty a => [a] → PrettyM ()
-block' xs = indented $        xs `sepBy` nl
+block' xs = indentedToCurPos $ xs `sepBy` nl
 
 -- | If @True@ print an @a@; if @False@ print @""@.
 ifPrint :: Pretty a => Bool → a → PrettyM ()
