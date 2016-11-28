@@ -15,6 +15,9 @@ module Printcess.PrettyPrinting (
   -- * Overview
   -- $overview
 
+  -- * Example
+  -- $example
+
   -- * Rendering
   pretty,
   prettyPrint,
@@ -25,8 +28,8 @@ module Printcess.PrettyPrinting (
   cInitIndent, cInitPrecedence,
   defConfig,
 
-  -- * Type Classes
-  Pretty(..), Pretty1(..), Pretty2(..),
+  -- * Type Class
+  Pretty(..),
 
   -- * Monad
   PrettyM,
@@ -42,12 +45,12 @@ module Printcess.PrettyPrinting (
   assocL, assocR, assocN,
   left, right, inner, AssocAnn(..),
 
-  -- * Folding Lists of Printable Things
+  -- * Folding Lists of @Pretty@ Things
   sepBy, interleaveL, interleaveR,
   block, block',
   ppList, ppSExp,
 
-  -- * Folding Maps of Printable Things
+  -- * Folding Maps of @Pretty@ Things
   ppListMap, ppMap,
 
   -- * Misc
@@ -56,6 +59,9 @@ module Printcess.PrettyPrinting (
 
   -- * Constants
   nl, sp,
+
+  -- * Lifted Type Classes
+  Pretty1(..), Pretty2(..),
 
   -- * Reexports
   State, (.=),
@@ -87,55 +93,71 @@ import Data.List.NonEmpty (NonEmpty(..))
         automatically broken. If the break point is inside a word,
         it is moved to the left until a white space character is reached.
         This avoids splitting identifiers into two.
+-}
 
-    The following example showcases the above features by printing a lambda
-    calculus term. The reader is not expected to completely understand the
-    example at this point.
+{- $example
+    In this section, a small example is presented, which pretty prints a
+    lambda calculus expression.
+
+    First we define an abstract syntax tree for lambda calculus expressions.
 
     > data Expr
     >   = EVar String
     >   | EAbs String Expr
     >   | EApp Expr Expr
-    >
+
+    Then we make @Expr@ an instance of the 'Pretty' type class, which
+    declares one method 'pp'. This method takes an @Expr@ and returns a
+    'PrettyM' @()@ action, which describes how to 'pretty' print the @Expr@.
+
     > instance Pretty Expr where
     >   pp (EVar x)     = pp x
-    >   pp (EAbs x e)   = assocR 0 $ "λ" +> x +> "." ++> R e
     >   pp (EApp e1 e2) = assocL 9 $ L e1 ++> R e2
-    >
+    >   pp (EAbs x e)   = assocR 0 $ "λ" +> I x +> "." ++> R e
+
+    We print
+
+    *   a variable @EVar x@ by printing the identifier string @x@.
+
+    *   a function application @EApp e1 e2@ as a left-associative operator of
+        fixity 9 ('assocL' @9@), where e1 is the left argument ('L') and @e2@ is
+        the right argument ('R'). The ('++>') combinator separates its first
+        argument with a space from its second argument.
+
+    *   a function abstraction @EAbs x e@ as a right-associative operator of
+        fixity 0 ('assocR' @0@), where @x@ is an inner
+        argument ('I') and @e@ is the right argument ('R').
+        The ('+>') combinator behaves as ('++>'), but without inserting a space.
+
+    Then we define a simple test expression @e1@ representing @λx. λy. x y (x y)@
+
     > e1 :: Expr
     > e1 = EAbs "x" $ EAbs "y" $ EApp (EApp (EVar "x") (EVar "y"))
     >                                 (EApp (EVar "x") (EVar "y"))
-    >
+
+    and pretty print it to 'String' using the 'pretty' function
+
     > s1, s2 :: String
     > s1 = pretty defConfig             e1    -- evaluates to "λx. λy. x y (x y)"
     > s2 = pretty (cMaxLineWidth .= 12) e1    -- evaluates to "λx. λy. x y
     >                                         --                   (x y)"
-
 -}
 
 -- Config ----------------------------------------------------------------------
 
--- | A @Config@ allows to specify various pretty printing options, e.g.
+-- | A 'Config' allows to specify various pretty printing options, e.g.
 -- the maximum line width.
 --
--- As the rendering functions, like 'pretty', take updates to a default @Config@,
--- only the lenses are exported.
+-- As the rendering functions, like 'pretty', take updates to an internal
+-- default 'Config', only the lenses of the 'Config' fields are exported.
 --
--- A custom @Config@ can be specified as in the following example:
+-- A custom 'Config' can be specified as in the following example:
 --
 -- > foo :: String
 -- > foo = pretty config "foo bar baz"
 -- >   where config = do cMaxLineWidth      .= 6
 -- >                     cInitIndent        .= 2
 -- >                     cIndentAfterBreaks .= 0
---
--- To preserve the maximum line width, the @String@ @"foo bar baz"@ is split
--- into 3 lines by replacing spaces with newlines. Because of the initial
--- indentation, each line gets indented by 2 spaces.
---
--- >   foo
--- >   bar
--- >   baz
 data Config = Config
   { _configMaxLineWidth      :: Int
   , _configInitPrecedence    :: Int
@@ -258,7 +280,7 @@ makeLenses ''PrettySt
 --   > pretty defConfig (1 :: Int)  -- evaluates to "1"
 pretty
   :: Pretty a
-  => State Config () -- ^ Changes to the default pretty printing 'Config'.
+  => State Config () -- ^ Updates for the default pretty printing 'Config'.
   -> a               -- ^ A 'Pretty' printable @a@.
   -> String          -- ^ The pretty printed @a@.
 pretty c
@@ -281,7 +303,7 @@ pretty c
 --   > prettyPrint c = liftIO . putStrLn . pretty c
 prettyPrint
   :: (MonadIO m, Pretty a)
-  => State Config () -- ^ Changes to the default pretty printing 'Config'.
+  => State Config () -- ^ Updates for the default pretty printing 'Config'.
   -> a               -- ^ A 'Pretty' printable @a@.
   -> m ()            -- ^ An 'IO' action pretty printing the @a@ to @stdout@.
 prettyPrint c =
@@ -294,31 +316,6 @@ prettyPrint c =
 --
 -- As pretty printing may depend on some context, e.g. the current indentation
 -- level, a 'State' monad for pretty printing ('PrettyM') is used.
---
--- The library provides instances for some base types, including 'String' and 'Int',
--- which are used in the following example to print @"foo"@ in sequence with @1@:
---
--- > pretty defConfig ("foo" +> 1)    -- evaluates to "foo1"
---
--- Consider a simple data type for integer arithmetic
---
--- > data Expr
--- >   = EInt Int
--- >   | EAdd Expr Expr
--- >   deriving (Eq, Ord, Read, Show)
---
--- To pretty print the expression
---
--- > expr = EAdd (EInt 1) (EAdd (EInt 2) (EInt 3))
---
--- as @"(1+(2+3))"@, we can make @Expr@ an instance of the 'Pretty' class
---
--- > instance Pretty Expr where
--- >   pp = \case
--- >     EInt i     → pp i  -- Use the Pretty instance for Int
--- >     EAdd e1 e2 → "(" +> e1 ++> "+" ++> e2 +> ")"
---
--- and then render it to 'String' with 'pretty' 'defConfig' @expr@.
 class Pretty a where
   -- | Pretty print an @a@ as a 'PrettyM' action.
   pp :: a → PrettyM ()
@@ -402,17 +399,17 @@ instance (Pretty k, Pretty v) => Pretty (M.Map k v) where
   pp = foldl pp' (pp "") . M.toList where
     pp' s (k, v) = s +> k ++> "=>" ++> indented v +> nl
 
--- | The 'Pretty1' type class lifts pretty printing to unary type constructors.
+-- | The 'Pretty1' type class lifts 'Pretty' printing to unary type constructors.
 --   It can be used in special cases to abstract over type constructors which
---   are pretty printable for any pretty printable type argument.
+--   are 'Pretty' printable for any 'Pretty' printable type argument.
 class Pretty1 f where
   pp1 :: Pretty a => f a → PrettyM ()
   default pp1 :: Pretty (f a) => f a -> PrettyM ()
   pp1 = pp
 
--- | The 'Pretty2' type class lifts pretty printing to binary type constructors.
+-- | The 'Pretty2' type class lifts 'Pretty' printing to binary type constructors.
 --   It can be used in special cases to abstract over type constructors which
---   are pretty printable for any pretty printable type argument.
+--   are 'Pretty' printable for any 'Pretty' printable type arguments.
 class Pretty2 (f :: * → * → *) where
   pp2 :: (Pretty a, Pretty b) => f a b → PrettyM ()
   default pp2 :: Pretty (f a b) => f a b -> PrettyM ()
@@ -429,13 +426,14 @@ newtype PrettyM a = PrettyM { runPrettyM :: State PrettySt a }
   deriving (Functor, Applicative, Monad, MonadState PrettySt)
 
 instance Pretty (PrettyM ()) where pp = (>> return ())
+-- instance Pretty (PrettyM a) where pp = (>> return ())
+
 -- instance a ~ () => IsString (PrettyM ()) where
 --   fromString = pp
--- instance Pretty (PrettyM a) where pp = (>> return ())
+
 instance a ~ () => Monoid (PrettyM a) where
   mempty = pure mempty
   mappend = liftA2 mappend
-
 
 -- Basic Combinators -----------------------------------------------------------
 
@@ -488,7 +486,7 @@ unindentBy = (indentation -=)
 --   > pretty defConfig $ "while (true) {" +>
 --   >              indented (nl +> "f();" +> nl +> "g();") +>
 --   >              nl +> "}"
---   > ↪ pretty defConfig $ "while (true) {" +>
+--   > ≡ pretty defConfig $ "while (true) {" +>
 --   >              block ["f();", "g();"] +>
 --   >              nl +> "}"
 --   > ↪ "while (true) {
@@ -657,7 +655,7 @@ interleaveR' s = foldl (\xs x → xs ++ [x,s]) []
 block :: Pretty a => [a] → PrettyM ()
 block  xs = indented $ nl +> (xs `sepBy` nl)
 
--- | Same as @block@, but starts the block on the current line.
+-- | Same as 'block', but starts the block on the current line.
 --
 -- Example:
 --
@@ -667,7 +665,7 @@ block  xs = indented $ nl +> (xs `sepBy` nl)
 block' :: Pretty a => [a] → PrettyM ()
 block' xs = indentedToCurPos $ xs `sepBy` nl
 
--- | Print a @[a]@ similar to its @Show@ instance.
+-- | Print a @[a]@ similar to its 'Show' instance.
 --
 --   Example:
 --
@@ -679,7 +677,7 @@ block' xs = indentedToCurPos $ xs `sepBy` nl
 ppList :: Pretty a => [a] → PrettyM ()
 ppList ps = "[" ++> (ps `sepBy` ", ") ++> "]"
 
--- | Print a list map @[(k,v)]@ as @ppList@, but render @(k,v)@ pairs as @"k → v"@.
+-- | Print a list map @[(k,v)]@ as 'ppList', but render @(k,v)@ pairs as @"k → v"@.
 --
 --   Example:
 --
@@ -691,7 +689,7 @@ ppList ps = "[" ++> (ps `sepBy` ", ") ++> "]"
 ppListMap :: (Pretty a, Pretty b) => [(a, b)] → PrettyM ()
 ppListMap = block . map (\(a,b) → a ++> "→" ++> b)
 
--- | Print a @Data.Map@ in the same way as @ppListMap@.
+-- | Print a @Data.Map@ in the same way as 'ppListMap'.
 ppMap :: (Pretty a, Pretty b) => M.Map a b → PrettyM ()
 ppMap = ppListMap . M.assocs
 
@@ -720,8 +718,8 @@ ppParen x = "(" +> x +> ")"
 ppSExp ∷ Pretty b ⇒ [b] → PrettyM ()
 ppSExp = ppParen . (`sepBy` sp)
 
--- | Print a horizontal bar consisting of a @Char@ as long as the max line width.
---   The horizontal bar has a title @String@ printed at column 6.
+-- | Print a horizontal bar consisting of a 'Char' as long as 'cMaxLineWidth'.
+--   The horizontal bar has a title 'String' printed at column 6.
 --
 --   Example:
 --
