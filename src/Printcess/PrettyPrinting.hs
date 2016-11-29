@@ -583,7 +583,7 @@ data AssocAnn a
 
 instance Pretty1 AssocAnn
 
--- | Let the associativity annotations ('L', 'R', 'I') for arguments
+-- | Let the associativity annotations for arguments ('L', 'R', 'I')
 -- behave as the 'left', 'right', and 'inner' functions.
 instance Pretty a => Pretty (AssocAnn a) where
   pp = \case
