@@ -139,7 +139,7 @@ ppList ps = "[" ~> (ps `sepBy` ", ") ~> "]"
 --
 --   > ppListMap = block . map (\(a,b) → a ~> "→" ~> b)
 ppListMap :: (Pretty a, Pretty b) => [(a, b)] → PrettyM ()
-ppListMap = block . map (\(a,b) → a ~> "→" ~> b)
+ppListMap = ppList . map (\(a,b) → a ~> "→" ~> b)
 
 -- | Print a @Data.Map@ in the same way as 'ppListMap'.
 ppMap :: (Pretty a, Pretty b) => M.Map a b → PrettyM ()
