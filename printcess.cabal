@@ -1,7 +1,7 @@
 name:
   printcess
 version:
-  0.1.0.0
+  0.1.0.1
 synopsis:
   Pretty printing with indentation, mixfix operators, and automatic line breaks.
 description:
