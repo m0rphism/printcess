@@ -3,10 +3,10 @@ name:
 version:
   0.1.0.0
 synopsis:
-  Pretty Printing library
+  Pretty printing with indentation, mixfix operators, and automatic line breaks.
 description:
-  Supports indentation, parenthesis-elision according to fixity and
-  associativity, and customizable automatic line breaks after text width
+  Pretty printing library supporting indentation, parenthesis-elision according
+  to fixity and associativity, and automatic line breaks after text width
   exceedance.
 homepage:
   https://github.com/m0rphism/printcess/
@@ -35,16 +35,11 @@ library
   default-language:
     Haskell2010
   build-depends:
-    base >= 4.7 && < 5,
-    containers,
-    lens,
-    linear,
-    mtl,
-    strict,
-    template-haskell,
-    transformers,
-    unordered-containers >= 0.2.7.0,
-    prelude-extras
+    base         >= 4.8   && < 5,
+    containers   >= 0.5.7 && < 0.6,
+    mtl          >= 2.2   && < 2.3,
+    transformers >= 0.5   && < 0.6,
+    lens         >= 4.10  && < 4.16
   ghc-options:
     -Wall -fno-warn-partial-type-signatures -fdefer-type-errors
   exposed-modules:
@@ -64,17 +59,13 @@ test-suite spec
   main-is:
     Spec.hs
   build-depends:
-    base >= 4.7 && < 5,
-    containers,
-    lens,
-    linear,
-    mtl,
-    strict,
-    template-haskell,
-    transformers,
-    unordered-containers >= 0.2.7.0,
-    prelude-extras,
-    HUnit,
-    QuickCheck,
-    hspec >= 1.5.3,
+    base         >= 4.8   && < 5,
+    containers   >= 0.5.7 && < 0.6,
+    mtl          >= 2.2   && < 2.3,
+    transformers >= 0.5   && < 0.6,
+    lens         >= 4.10  && < 4.16,
+    HUnit        >= 1.3   && < 1.6,
+    QuickCheck   >= 2.8   && < 2.10,
+    hspec        >= 2.2   && < 2.4,
     printcess
+
