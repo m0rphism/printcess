@@ -8,47 +8,71 @@ main :: IO ()
 main = hspec $ do
   describe "basic" $ do
     it "prints a string" $
-      pretty defConfig "foo" `shouldBe` "foo"
+      pretty defConfig
+        "foo" `shouldBe`
+        "foo"
     it "handles newlines" $
-      pretty defConfig "foo\nbar" `shouldBe` "foo\nbar"
+      pretty defConfig
+        "foo\nbar" `shouldBe`
+        "foo\nbar"
     it "indents after newlines" $
-      pretty defConfig (indented "foo\nbar") `shouldBe` "  foo\n  bar"
+      pretty defConfig
+        (indented "foo\nbar") `shouldBe`
+        "  foo\n  bar"
+    it "respects initial indentation" $
+      pretty (cInitIndent .= 2)
+        "foo\nbar" `shouldBe`
+        "  foo\n  bar"
+
   describe "automatic line breaks" $ do
     it "breaks too long lines" $
-      pretty (cMaxLineWidth .= Just 10) "foo bar baz boo"
-        `shouldBe` "foo bar \n    baz \n    boo"
+      pretty (cMaxLineWidth .= Just 10)
+        "foo bar baz boo" `shouldBe`
+        "foo bar \n    baz \n    boo"
     it "breaks too long lines" $
-      pretty (cMaxLineWidth .= Just 11) "foo bar baz boo"
-        `shouldBe` "foo bar baz\n    boo"
+      pretty (cMaxLineWidth .= Just 11)
+        "foo bar baz boo" `shouldBe`
+        "foo bar baz\n    boo"
     it "breaks too long lines twice" $
-      pretty (cMaxLineWidth .= Just 10) "foo bar baz boo r"
-        `shouldBe` "foo bar \n    baz \n    boo r"
+      pretty (cMaxLineWidth .= Just 10)
+        "foo bar baz boo r" `shouldBe`
+        "foo bar \n    baz \n    boo r"
     it "breaks too long lines four times" $
-      pretty (cMaxLineWidth .= Just 10) "foo bar baz boo raz roo"
-        `shouldBe` "foo bar \n    baz \n    boo \n    raz \n    roo"
+      pretty (cMaxLineWidth .= Just 10)
+        "foo bar baz boo raz roo" `shouldBe`
+        "foo bar \n    baz \n    boo \n    raz \n    roo"
     it "breaks too long lines" $
-      pretty (cMaxLineWidth .= Just 11) "foo bar baz boo r"
-        `shouldBe` "foo bar baz\n    boo r"
+      pretty (cMaxLineWidth .= Just 11)
+        "foo bar baz boo r" `shouldBe`
+        "foo bar baz\n    boo r"
     it "breaks too long lines twice" $
-      pretty (cMaxLineWidth .= Just 11) "foo bar baz boo raz roo"
-        `shouldBe` "foo bar baz\n    boo raz\n    roo"
+      pretty (cMaxLineWidth .= Just 11)
+        "foo bar baz boo raz roo" `shouldBe`
+        "foo bar baz\n    boo raz\n    roo"
     it "breaks too long lines" $
-      pretty (cMaxLineWidth .= Just 12) "foo bar baz boo r"
-        `shouldBe` "foo bar baz \n    boo r"
+      pretty (cMaxLineWidth .= Just 12)
+        "foo bar baz boo r" `shouldBe`
+        "foo bar baz \n    boo r"
     it "breaks too long lines & setting indentChar works" $
-      pretty (do cMaxLineWidth .= Just 10; cIndentChar .= '~') "foo bar baz boo r"
-        `shouldBe` "foo bar \n~~~~baz \n~~~~boo r"
+      pretty (do cMaxLineWidth .= Just 10; cIndentChar .= '~')
+        "foo bar baz boo r" `shouldBe`
+        "foo bar \n~~~~baz \n~~~~boo r"
+
   describe "Lambda Calculus" $ do
     it "respects associativity" $
-      pretty defConfig e1
-        `shouldBe` "λx. λy. x y (x y)"
+      pretty defConfig
+        e1 `shouldBe`
+        "λx. λy. x y (x y)"
+
   describe "Blocks" $ do
     it "blocks starting on next line" $
-      pretty defConfig ("do" ++> block [ "ma", "mb" ])
-        `shouldBe` "do \n  ma\n  mb"
+      pretty defConfig
+        ("do" ++> block [ "ma", "mb" ]) `shouldBe`
+        "do \n  ma\n  mb"
     it "blocks starting on same line" $
-      pretty defConfig ("do" ++> block' [ "ma", "mb" ])
-        `shouldBe` "do ma\n   mb"
+      pretty defConfig
+        ("do" ++> block' [ "ma", "mb" ]) `shouldBe`
+        "do ma\n   mb"
 
 data Expr
   = EVar String
