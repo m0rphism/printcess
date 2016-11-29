@@ -8,42 +8,42 @@ main :: IO ()
 main = hspec $ do
   describe "basic" $ do
     it "prints a string" $
-      pretty def "foo" `shouldBe` "foo"
+      pretty defConfig "foo" `shouldBe` "foo"
   describe "automatic line breaks" $ do
     it "breaks too long lines" $
-      pretty (configMaxLineWidth .= 10) "foo bar baz boo"
+      pretty (cMaxLineWidth .= Just 10) "foo bar baz boo"
         `shouldBe` "foo bar \n    baz \n    boo"
     it "breaks too long lines" $
-      pretty (configMaxLineWidth .= 11) "foo bar baz boo"
+      pretty (cMaxLineWidth .= Just 11) "foo bar baz boo"
         `shouldBe` "foo bar baz\n    boo"
     it "breaks too long lines twice" $
-      pretty (configMaxLineWidth .= 10) "foo bar baz boo r"
+      pretty (cMaxLineWidth .= Just 10) "foo bar baz boo r"
         `shouldBe` "foo bar \n    baz \n    boo r"
     it "breaks too long lines four times" $
-      pretty (configMaxLineWidth .= 10) "foo bar baz boo raz roo"
+      pretty (cMaxLineWidth .= Just 10) "foo bar baz boo raz roo"
         `shouldBe` "foo bar \n    baz \n    boo \n    raz \n    roo"
     it "breaks too long lines" $
-      pretty (configMaxLineWidth .= 11) "foo bar baz boo r"
+      pretty (cMaxLineWidth .= Just 11) "foo bar baz boo r"
         `shouldBe` "foo bar baz\n    boo r"
     it "breaks too long lines twice" $
-      pretty (configMaxLineWidth .= 11) "foo bar baz boo raz roo"
+      pretty (cMaxLineWidth .= Just 11) "foo bar baz boo raz roo"
         `shouldBe` "foo bar baz\n    boo raz\n    roo"
     it "breaks too long lines" $
-      pretty (configMaxLineWidth .= 12) "foo bar baz boo r"
+      pretty (cMaxLineWidth .= Just 12) "foo bar baz boo r"
         `shouldBe` "foo bar baz \n    boo r"
     it "breaks too long lines & setting indentChar works" $
-      pretty (do configMaxLineWidth .= 10; configIndentChar .= '~') "foo bar baz boo r"
+      pretty (do cMaxLineWidth .= Just 10; cIndentChar .= '~') "foo bar baz boo r"
         `shouldBe` "foo bar \n~~~~baz \n~~~~boo r"
   describe "Lambda Calculus" $ do
     it "respects associativity" $
-      pretty def e1
+      pretty defConfig e1
         `shouldBe` "λx. λy. x y (x y)"
   describe "Blocks" $ do
     it "blocks starting on next line" $
-      pretty def ("do" ++> block [ "ma", "mb" ])
+      pretty defConfig ("do" ++> block [ "ma", "mb" ])
         `shouldBe` "do \n  ma\n  mb"
     it "blocks starting on same line" $
-      pretty def ("do" ++> block' [ "ma", "mb" ])
+      pretty defConfig ("do" ++> block' [ "ma", "mb" ])
         `shouldBe` "do ma\n   mb"
 
 data Expr

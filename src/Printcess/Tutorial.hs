@@ -151,4 +151,4 @@ main0 :: IO ()
 main0 = do
   prettyPrint defConfig $ "Printcess Pretty Printing Example"
   prettyPrint defConfig expr1
-  prettyPrint (cMaxLineWidth .= 20) expr2
+  prettyPrint (cMaxLineWidth .= Just 20) expr2

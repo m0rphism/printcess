@@ -117,7 +117,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 
     We print
 
-    *   a variable @EVar x@ by printing the identifier string @x@.
+    *   a variable @EVar x@ by printing the identifier 'String' @x@.
 
     *   a function application @EApp e1 e2@ as a left-associative operator of
         fixity 9 ('assocL' @9@), where e1 is the left argument ('L') and @e2@ is
@@ -138,9 +138,9 @@ import Data.List.NonEmpty (NonEmpty(..))
     and pretty print it to 'String' using the 'pretty' function
 
     > s1, s2 :: String
-    > s1 = pretty defConfig             e1    -- evaluates to "λx. λy. x y (x y)"
-    > s2 = pretty (cMaxLineWidth .= 12) e1    -- evaluates to "λx. λy. x y
-    >                                         --                   (x y)"
+    > s1 = pretty defConfig                  e1    -- evaluates to "λx. λy. x y (x y)"
+    > s2 = pretty (cMaxLineWidth .= Just 12) e1    -- evaluates to "λx. λy. x y
+    >                                              --                   (x y)"
 -}
 
 -- Config ----------------------------------------------------------------------
@@ -155,11 +155,11 @@ import Data.List.NonEmpty (NonEmpty(..))
 --
 -- > foo :: String
 -- > foo = pretty config "foo bar baz"
--- >   where config = do cMaxLineWidth      .= 6
+-- >   where config = do cMaxLineWidth      .= Just 6
 -- >                     cInitIndent        .= 2
 -- >                     cIndentAfterBreaks .= 0
 data Config = Config
-  { _configMaxLineWidth      :: Int
+  { _configMaxLineWidth      :: Maybe Int
   , _configInitPrecedence    :: Int
   , _configInitIndent        :: Int
   , _configIndentChar        :: Char
@@ -169,7 +169,7 @@ data Config = Config
 
 def :: Config
 def = Config
-  { _configMaxLineWidth      = 80
+  { _configMaxLineWidth      = Just 80
   , _configInitPrecedence    = -1
   , _configInitIndent        = 0
   , _configIndentChar        = ' '
@@ -197,8 +197,8 @@ makeLenses ''Config
 --
 --   This guarantees both progress and not to break identifiers into parts.
 --
---   Default: @80@
-cMaxLineWidth :: Lens' Config Int
+--   Default: @Just 80@
+cMaxLineWidth :: Lens' Config (Maybe Int)
 cMaxLineWidth = configMaxLineWidth
 
 -- | The character used for indentation.
@@ -221,7 +221,7 @@ cIndentDepth = configIndentDepth
 --   indentation of all resulting lines, except the first one, is increased by this amount.
 --   For example
 --
---   > pretty (do cMaxLineWidth .= 8; cIndentAfterBreaks .= 4) "foo bar baz boo"
+--   > pretty (do cMaxLineWidth .= Just 8; cIndentAfterBreaks .= 4) "foo bar baz boo"
 --   evaluates to
 --
 --   > foo bar
@@ -251,7 +251,7 @@ data PrettySt = PrettySt
   { _indentation       :: Int
   , _precedence        :: Int
   , _assoc             :: Assoc
-  , _maxLineWidth      :: Int
+  , _maxLineWidth      :: Maybe Int
   , _text              :: NE.NonEmpty String
   , _indentChar        :: Char
   , _indentDepth       :: Int
@@ -316,9 +316,17 @@ prettyPrint c =
 --
 -- As pretty printing may depend on some context, e.g. the current indentation
 -- level, a 'State' monad for pretty printing ('PrettyM') is used.
+--
+-- A default implementation is provided copying behavior from a 'Show' instance.
+-- This can be convenient for deriving 'Pretty', e.g. for base types or
+-- debugging.
 class Pretty a where
   -- | Pretty print an @a@ as a 'PrettyM' action.
   pp :: a → PrettyM ()
+
+  default
+    pp :: Show a => a → PrettyM ();
+    pp = pp . show
 
 head1L :: Lens' (NE.NonEmpty a) a
 head1L = lens NE.head (\(_ :| xs) x → x :| xs)
@@ -378,23 +386,25 @@ instance Pretty String where
       curLine ← use $ text . head1L
       -- We have to allow at least indentation + 1 word, otherwise indenting after
       -- line break due to line continuation can cause infinite loop
-      maxLineLength ← max <$> charsBeforeWordM 1 <*> use maxLineWidth
-      when (length curLine > maxLineLength) $ do
-        let (curLine', lineRest) = splitAt maxLineLength curLine -- length s1 == maxLineLength
-        let (wordRest, curLine'')
-              | isNoWS (head lineRest)
-                = both %~ reverse $ break (==' ') $ reverse curLine'
-              | otherwise
-                = ("", curLine')
-        text . head1L .= curLine''
-        -- Increase indentation once after the first forced line break, this results into:
-        --   this line was too long
-        --       still the first line
-        --       it won't stop
-        i ← use indentAfterBreaks
-        let f | first     = indentedBy i
-              | otherwise = id
-        f $ do nl; ppLine False $ dropWhile isWS $ wordRest ++ lineRest
+      mMaxLineLength ← use maxLineWidth
+      forM_ mMaxLineLength $ \maxLineLength → do
+        maxLineLength' ← max <$> charsBeforeWordM 1 <*> pure maxLineLength
+        when (length curLine > maxLineLength') $ do
+          let (curLine', lineRest) = splitAt maxLineLength curLine -- length s1 == maxLineLength
+          let (wordRest, curLine'')
+                | isNoWS (head lineRest)
+                  = both %~ reverse $ break (==' ') $ reverse curLine'
+                | otherwise
+                  = ("", curLine')
+          text . head1L .= curLine''
+          -- Increase indentation once after the first forced line break, this results into:
+          --   this line was too long
+          --       still the first line
+          --       it won't stop
+          i ← use indentAfterBreaks
+          let f | first     = indentedBy i
+                | otherwise = id
+          f $ do nl; ppLine False $ dropWhile isWS $ wordRest ++ lineRest
 
 -- | In contrast to 'Show', @\'c\'@ is printed as @"c"@ and not @"\'c\'"@.
 -- Implemented as: @pp = pp . (:"")@
@@ -402,16 +412,18 @@ instance Pretty Char   where pp = pp . (:"")
 
 -- | Behaves like 'Show': @1@ is printed to @"1"@.
 -- Implemented as: @pp = pp . show@
-instance Pretty Int    where pp = pp . show
+instance Pretty Int
 
 -- | Behaves like 'Show': @1.2@ is printed to @"1.2"@.
 -- Implemented as: @pp = pp . show@
-instance Pretty Float  where pp = pp . show
+instance Pretty Float
 
 -- | Behaves like 'Show': @1.2@ is printed to @"1.2"@.
 -- Implemented as: @pp = pp . show@
-instance Pretty Double where pp = pp . show
+instance Pretty Double
 
+-- | Print a map @M.fromList [("k1","v1"), ("k2","v2")]@
+-- as @"[ k1 → v1, k2 → v2 ]"@.
 instance (Pretty k, Pretty v) => Pretty (M.Map k v) where
   pp = foldl pp' (pp "") . M.toList where
     pp' s (k, v) = s +> k ++> "=>" ++> indented v +> nl
@@ -442,8 +454,9 @@ class Pretty2 (f :: * → * → *) where
 newtype PrettyM a = PrettyM { runPrettyM :: State PrettySt a }
   deriving (Functor, Applicative, Monad, MonadState PrettySt)
 
-instance Pretty (PrettyM ()) where pp = (>> return ())
--- instance Pretty (PrettyM a) where pp = (>> return ())
+-- | This instance makes it possible to nest operators like @('+>')@.
+-- Implemented as: @pp = id@
+instance Pretty (PrettyM ()) where pp = id
 
 -- instance a ~ () => IsString (PrettyM ()) where
 --   fromString = pp
@@ -565,11 +578,18 @@ assocR i = withPrecedence (AssocR, i) . pp
 assocN :: Pretty a => Int → a → PrettyM ()
 assocN i = withPrecedence (AssocN, i) . pp
 
--- | Print an @a@ as a left, right, or inner argument of a mixfix operator.
-data AssocAnn a = L a | R a | I a
+-- | The constructors of this type can be used as short forms of 'left',
+-- 'right', and 'inner'.
+data AssocAnn a
+  = L a -- ^ Print an @a@ as the left  argument of a mixfix operator (behaves like 'left').
+  | R a -- ^ Print an @a@ as the right argument of a mixfix operator (behaves like 'right').
+  | I a -- ^ Print an @a@ as the inner argument of a mixfix operator (behaves like 'inner').
   deriving (Eq, Ord, Read, Show)
 
 instance Pretty1 AssocAnn
+
+-- | Let the associativity annotations ('L', 'R', 'I') for arguments
+-- behave as the 'left', 'right', and 'inner' functions.
 instance Pretty a => Pretty (AssocAnn a) where
   pp = \case
     L a → left a
@@ -735,8 +755,9 @@ ppParen x = "(" +> x +> ")"
 ppSExp ∷ Pretty b ⇒ [b] → PrettyM ()
 ppSExp = ppParen . (`sepBy` sp)
 
--- | Print a horizontal bar consisting of a 'Char' as long as 'cMaxLineWidth'.
---   The horizontal bar has a title 'String' printed at column 6.
+-- | Print a horizontal bar consisting of a 'Char' as long as 'cMaxLineWidth'
+--   (or 80 if it is @Nothing@). The horizontal bar has a title 'String' printed
+--   at column 6.
 --
 --   Example:
 --
@@ -744,7 +765,7 @@ ppSExp = ppParen . (`sepBy` sp)
 --   > -- ↪ "----- Foo -------------------------------…"
 ppBar ∷ Pretty a => Char → a → PrettyM ()
 ppBar c s = do
-  w ← use maxLineWidth
+  w ← maybe 80 id <$> use maxLineWidth
   replicate 5 c ++> s ++> replicate (w - (7 + length (pretty (pure ()) s))) c +> "\n"
 
 
