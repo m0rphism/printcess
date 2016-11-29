@@ -218,7 +218,14 @@ class Pretty2 (f :: * → * → *) where
 -- Pretty Monad ----------------------------------------------------------------
 
 -- | The 'PrettyM' monad is run in the pretty printing process, e.g. in
---   'pretty' or 'prettyPrint'.
+-- 'pretty' or 'prettyPrint'.
+--
+-- 'PrettyM' is internally a 'State' monad manipulating a 'Config' and a list of
+-- pretty printed lines.
+--
+-- Most of the combinators from this library take values of 'Pretty' printable types,
+-- convert them to @'PrettyM' ()@ actions using 'pp', and combine the actions in
+-- some way resulting in a new @'PrettyM' ()@ action.
 newtype PrettyM a = PrettyM { runPrettyM :: State PrettySt a }
   deriving (Functor, Applicative, Monad, MonadState PrettySt)
 
