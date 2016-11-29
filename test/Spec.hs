@@ -9,6 +9,10 @@ main = hspec $ do
   describe "basic" $ do
     it "prints a string" $
       pretty defConfig "foo" `shouldBe` "foo"
+    it "handles newlines" $
+      pretty defConfig "foo\nbar" `shouldBe` "foo\nbar"
+    it "indents after newlines" $
+      pretty defConfig (indented "foo\nbar") `shouldBe` "  foo\n  bar"
   describe "automatic line breaks" $ do
     it "breaks too long lines" $
       pretty (cMaxLineWidth .= Just 10) "foo bar baz boo"

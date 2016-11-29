@@ -382,6 +382,8 @@ instance Pretty String where
 
     ppLine :: Bool -> String -> PrettyM ()
     ppLine first s = do
+      oldLine ← use $ text . head1L
+      when (null oldLine) addIndent
       text . head1L %= (++s)
       curLine ← use $ text . head1L
       -- We have to allow at least indentation + 1 word, otherwise indenting after
@@ -771,9 +773,7 @@ ppBar c s = do
 
 -- | Print a newline (line break).
 nl :: PrettyM ()
-nl = do
-  text %= ("" NE.<|)
-  addIndent
+nl = text %= ("" NE.<|)
 
 -- | Print a space.
 sp :: PrettyM ()
