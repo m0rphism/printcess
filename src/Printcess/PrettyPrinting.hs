@@ -46,7 +46,7 @@ module Printcess.PrettyPrinting (
   left, right, inner, AssocAnn(..),
 
   -- * Folding Lists of @Pretty@ Things
-  sepBy, interleaveL, interleaveR,
+  sepBy, sepByL, sepByR,
   block, block',
   ppList, ppSExp,
 
@@ -285,7 +285,7 @@ pretty
   -> String          -- ^ The pretty printed @a@.
 pretty c
   = concat
-  . (`sepByL` "\n")
+  . (`sepByList` "\n")
   . reverse
   . NE.toList
   . view text
@@ -639,35 +639,35 @@ sepByA []  _    = pure []
 sepByA [a] _    = (:[]) <$> a
 sepByA (a:as) s = (\x y z → x:y:z) <$> a <*> s <*> sepByA as s
 
-sepByL :: [[a]] → [a] → [[a]]
-sepByL []  _    = []
-sepByL [s] _    = [s]
-sepByL (s:ss) s' = s : s' : sepByL ss s'
+sepByList :: [[a]] → [a] → [[a]]
+sepByList []  _    = []
+sepByList [s] _    = [s]
+sepByList (s:ss) s' = s : s' : sepByList ss s'
 
 -- | Put an @a@ before each element of a @[b]@ and then print them in sequence.
 --
 --   Examples:
 --
---   > pretty defConfig $ interleaveL "," []          -- ↪ ""
---   > pretty defConfig $ interleaveL "," ["x"]       -- ↪ ",x"
---   > pretty defConfig $ interleaveL "," ["x", "y"]  -- ↪ ",x,y"
-interleaveL :: (Pretty a, Pretty b) => a → [b] → PrettyM ()
-interleaveL a bs = foldl (>>) (pure ()) $ interleaveL' (pp a) (pp <$> bs)
+--   > pretty defConfig $ sepByL "," []          -- ↪ ""
+--   > pretty defConfig $ sepByL "," ["x"]       -- ↪ ",x"
+--   > pretty defConfig $ sepByL "," ["x", "y"]  -- ↪ ",x,y"
+sepByL :: (Pretty a, Pretty b) => [b] → a → PrettyM ()
+sepByL bs a = foldl (>>) (pure ()) $ map pp bs `sepByL'` pp a
 
 -- | Put an @a@ after each element of a @[b]@ and then print them in sequence.
 --
 --   Examples:
 --
---   > pretty defConfig $ interleaveR "," []          -- ↪ ""
---   > pretty defConfig $ interleaveR "," ["x"]       -- ↪ "x,"
---   > pretty defConfig $ interleaveR "," ["x", "y"]  -- ↪ "x,y,"
-interleaveR :: (Pretty a, Pretty b) => a → [b] → PrettyM ()
-interleaveR a bs = foldl (>>) (pure ()) $ interleaveR' (pp a) (pp <$> bs)
+--   > pretty defConfig $ sepByR "," []          -- ↪ ""
+--   > pretty defConfig $ sepByR "," ["x"]       -- ↪ "x,"
+--   > pretty defConfig $ sepByR "," ["x", "y"]  -- ↪ "x,y,"
+sepByR :: (Pretty a, Pretty b) => [b] → a → PrettyM ()
+sepByR bs a = foldl (>>) (pure ()) $ map pp bs `sepByR'` pp a
 
-interleaveL' :: a → [a] → [a]
-interleaveL' s = foldl (\xs x → xs ++ [s,x]) []
-interleaveR' :: a → [a] → [a]
-interleaveR' s = foldl (\xs x → xs ++ [x,s]) []
+sepByL' :: [a] → a → [a]
+sepByL' xs0 s = foldl (\xs x → xs ++ [s,x]) [] xs0
+sepByR' :: [a] → a → [a]
+sepByR' xs0 s = foldl (\xs x → xs ++ [x,s]) [] xs0
 
 -- splitAtDelim :: String → Char → [String]
 -- splitAtDelim s' c = go [] s' where
