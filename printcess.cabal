@@ -1,7 +1,7 @@
 name:
   printcess
 version:
-  0.1.0.1
+  0.1.0.2
 synopsis:
   Pretty printing with indentation, mixfix operators, and automatic line breaks.
 description:
@@ -40,10 +40,13 @@ library
     Haskell2010
   build-depends:
     base         >= 4.8   && < 5,
-    containers   >= 0.5.7 && < 0.6,
+    containers   >= 0.5.6 && < 0.6,
     mtl          >= 2.2   && < 2.3,
-    transformers >= 0.5   && < 0.6,
+    transformers >= 0.4.2 && < 0.6,
     lens         >= 4.10  && < 4.16
+  if impl(ghc<8)
+    build-depends:
+      semigroups >= 0.18  && < 0.19
   ghc-options:
     -Wall -fno-warn-partial-type-signatures
   exposed-modules:
