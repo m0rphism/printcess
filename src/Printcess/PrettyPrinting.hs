@@ -1,15 +1,7 @@
-{-# LANGUAGE EmptyCase #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE UnicodeSyntax #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE LambdaCase, UnicodeSyntax, MultiWayIf, KindSignatures #-}
+{-# LANGUAGE
+  DefaultSignatures, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase,
+  TemplateHaskell, UnicodeSyntax
+#-}
 
 module Printcess.PrettyPrinting (
   -- * Overview
