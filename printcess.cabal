@@ -44,6 +44,10 @@ library
     -Wall -fno-warn-partial-type-signatures -fdefer-type-errors
   exposed-modules:
     Printcess.PrettyPrinting
+  other-modules:
+    Printcess.Config,
+    Printcess.Core,
+    Printcess.Combinators
 
 source-repository head
   type:
