@@ -126,10 +126,6 @@ block' xs = indentedToCurPos $ nl `betweenEach` xs
 --   Example:
 --
 --   > pretty defConfig $ ppList [ "x", "y" ]  -- ↪ "[ x, y ]"
---
---   Convenience function, defined as:
---
---   > ppList ps = "[" ~> ", " `betweenEach` ps ~> "]"
 ppList :: Pretty a => [a] → PrettyM ()
 ppList ps = "[" ~> ", " `betweenEach` ps ~> "]"
 
@@ -137,11 +133,8 @@ ppList ps = "[" ~> ", " `betweenEach` ps ~> "]"
 --
 --   Example:
 --
---   > pretty defConfig $ ppListMap [ ("k1", "v1"), ("k2", "v2") ]  -- ↪ "[ k1 → v1, k2 → v2 ]"
---
---   Convenience function, defined as:
---
---   > ppListMap = block . map (\(a,b) → a ~> "→" ~> b)
+--   > pretty defConfig $ ppListMap [ ("k1", "v1"), ("k2", "v2") ]
+--   > -- ↪ "[ k1 → v1, k2 → v2 ]"
 ppListMap :: (Pretty a, Pretty b) => [(a, b)] → PrettyM ()
 ppListMap = ppList . map (\(a,b) → a ~> "→" ~> b)
 

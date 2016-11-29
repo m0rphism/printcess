@@ -28,6 +28,10 @@ build-type:
   Custom
 cabal-version:
   >=1.10
+stability:
+  Beta
+tested-with:
+  GHC == 8.0.1
 
 library
   hs-source-dirs:
@@ -41,7 +45,7 @@ library
     transformers >= 0.5   && < 0.6,
     lens         >= 4.10  && < 4.16
   ghc-options:
-    -Wall -fno-warn-partial-type-signatures -fdefer-type-errors
+    -Wall -fno-warn-partial-type-signatures
   exposed-modules:
     Printcess.PrettyPrinting
   other-modules:
