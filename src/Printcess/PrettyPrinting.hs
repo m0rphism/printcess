@@ -37,8 +37,7 @@ module Printcess.PrettyPrinting (
   ppList, ppListMap, ppMap,
 
   -- * Other combinators
-  ppParen,
-  ppBar,
+  bar, titleBar,
 
   -- * Constants
   nl, sp,

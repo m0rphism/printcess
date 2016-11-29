@@ -8,6 +8,7 @@ import Control.Lens
 import qualified Data.Map as M
 
 import Printcess.Core
+import Printcess.Config -- For haddock links to work...
 
 -- Basic Combinators -----------------------------------------------------------
 
@@ -148,17 +149,17 @@ ppListMap = ppList . map (\(a,b) → a ~> "→" ~> b)
 ppMap :: (Pretty a, Pretty b) => M.Map a b → PrettyM ()
 ppMap = ppListMap . M.assocs
 
--- | Print an @a@ in parentheses.
+-- | Print a horizontal bar consisting of a 'Char' as long as 'cMaxLineWidth'
+--   (or 80 if it is @Nothing@).
 --
 --   Example:
 --
---   > pretty defConfig $ ppParen "foo"  -- ↪ "(foo)"
---
---   Convenience function, defined as:
---
---   > ppParen x = "(" +> x +> ")"
-ppParen ∷ Pretty a ⇒ a → PrettyM ()
-ppParen x = "(" +> x +> ")"
+--   > pretty defConfig $ bar '-'
+--   > -- ↪ "-----------------------------------------…"
+bar :: Char → PrettyM ()
+bar c = do
+  w ← maybe 80 id <$> use maxLineWidth
+  pp $ replicate w c
 
 -- | Print a horizontal bar consisting of a 'Char' as long as 'cMaxLineWidth'
 --   (or 80 if it is @Nothing@). The horizontal bar has a title 'String' printed
@@ -166,13 +167,12 @@ ppParen x = "(" +> x +> ")"
 --
 --   Example:
 --
---   > pretty defConfig $ ppBar '-' "Foo"
+--   > pretty defConfig $ titleBar '-' "Foo"
 --   > -- ↪ "----- Foo -------------------------------…"
-ppBar ∷ Pretty a => Char → a → PrettyM ()
-ppBar c s = do
+titleBar :: Pretty a => Char → a → PrettyM ()
+titleBar c s = do
   w ← maybe 80 id <$> use maxLineWidth
   replicate 5 c ~> s ~> replicate (w - (7 + length (pretty (pure ()) s))) c +> "\n"
-
 
 -- | Print a newline (line break).
 nl :: PrettyM ()
