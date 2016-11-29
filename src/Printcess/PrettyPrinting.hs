@@ -35,8 +35,7 @@ module Printcess.PrettyPrinting (
   PrettyM,
 
   -- * Sequencing
-  (+>),
-  (++>),
+  (+>), (~>), (\>),
 
   -- * Indentation
   indentedByChars, indentedBy, indented,
@@ -110,8 +109,8 @@ import Data.List.NonEmpty (NonEmpty(..))
 
     > instance Pretty Expr where
     >   pp (EVar x)     = pp x
-    >   pp (EApp e1 e2) = assocL 9 $ L e1 ++> R e2
-    >   pp (EAbs x e)   = assocR 0 $ "λ" +> I x +> "." ++> R e
+    >   pp (EApp e1 e2) = assocL 9 $ L e1 ~> R e2
+    >   pp (EAbs x e)   = assocR 0 $ "λ" +> I x +> "." ~> R e
 
     We print
 
@@ -119,13 +118,13 @@ import Data.List.NonEmpty (NonEmpty(..))
 
     *   a function application @EApp e1 e2@ as a left-associative operator of
         fixity 9 ('assocL' @9@), where e1 is the left argument ('L') and @e2@ is
-        the right argument ('R'). The ('++>') combinator separates its first
+        the right argument ('R'). The ('~>') combinator separates its first
         argument with a space from its second argument.
 
     *   a function abstraction @EAbs x e@ as a right-associative operator of
         fixity 0 ('assocR' @0@), where @x@ is an inner
         argument ('I') and @e@ is the right argument ('R').
-        The ('+>') combinator behaves as ('++>'), but without inserting a space.
+        The ('+>') combinator behaves as ('~>'), but without inserting a space.
 
     Then we define a simple test expression @e1@ representing @λx. λy. x y (x y)@
 
@@ -317,7 +316,7 @@ prettyPrint c =
 --
 -- A default implementation is provided copying behavior from a 'Show' instance.
 -- This can be convenient for deriving 'Pretty', e.g. for base types or
--- debugging.
+-- debugging. The default implementation is defined by @pp = pp . show@.
 class Pretty a where
   -- | Pretty print an @a@ as a 'PrettyM' action.
   pp :: a → PrettyM ()
@@ -410,26 +409,22 @@ instance Pretty String where
           f $ do nl; ppLine False $ dropWhile isWS $ wordRest ++ lineRest
 
 -- | In contrast to 'Show', @\'c\'@ is printed as @"c"@ and not @"\'c\'"@.
--- Implemented as: @pp = pp . (:"")@
 instance Pretty Char   where pp = pp . (:"")
 
 -- | Behaves like 'Show': @1@ is printed to @"1"@.
--- Implemented as: @pp = pp . show@
 instance Pretty Int
 
 -- | Behaves like 'Show': @1.2@ is printed to @"1.2"@.
--- Implemented as: @pp = pp . show@
 instance Pretty Float
 
 -- | Behaves like 'Show': @1.2@ is printed to @"1.2"@.
--- Implemented as: @pp = pp . show@
 instance Pretty Double
 
 -- | Print a map @M.fromList [("k1","v1"), ("k2","v2")]@
 -- as @"[ k1 → v1, k2 → v2 ]"@.
 instance (Pretty k, Pretty v) => Pretty (M.Map k v) where
   pp = foldl pp' (pp "") . M.toList where
-    pp' s (k, v) = s +> k ++> "=>" ++> indented v +> nl
+    pp' s (k, v) = s +> k ~> "=>" ~> indented v +> nl
 
 -- | The 'Pretty1' type class lifts 'Pretty' printing to unary type constructors.
 --   It can be used in special cases to abstract over type constructors which
@@ -469,6 +464,7 @@ instance Pretty (PrettyM ()) where pp = id
 --   Convenience function, defined as
 --
 --   > a +> b = pp a >> pp b
+infixr 5 +>
 (+>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
 a +> b = pp a >> pp b
 
@@ -476,13 +472,28 @@ a +> b = pp a >> pp b
 --
 --   Example:
 --
---   > pretty defConfig $ "x" ++> 1  -- ↪ "x 1"
+--   > pretty defConfig $ "x" ~> 1  -- ↪ "x 1"
 --
 --   Convenience function, defined as
 --
---   > a ++> b = a +> " " +> b
-(++>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
-a ++> b = a +> sp +> b
+--   > a ~> b = a +> " " +> b
+infixr 4 ~>
+(~>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
+a ~> b = a +> sp +> b
+
+-- | Print two 'Pretty' printable things in sequence, separated by a newline.
+--
+--   Example:
+--
+--   > pretty defConfig $ "x" \> 1  -- ↪ "x
+--   >                                    1"
+--
+--   Convenience function, defined as
+--
+--   > a \> b = a +> "\n" +> b
+infixr 3 \>
+(\>) :: (Pretty a, Pretty b) => a → b → PrettyM ()
+a \> b = a +> nl +> b
 
 -- Indentation -----------------------------------------------------------------
 
@@ -504,8 +515,8 @@ indentByLevels i =
 --   Example:
 --
 --   > pretty defConfig $
---   >   "while (true) {" +> nl +>
---   >   indentedByChars 2 ("f();" +> nl +> "g();" +> nl) +>
+--   >   "while (true) {" \>
+--   >   indentedByChars 2 ("f();" \> "g();") \>
 --   >   "}"
 --   > -- ↪ "while (true) {
 --   > --      f();
@@ -695,7 +706,7 @@ sepByR' xs0 s = foldl (\xs x → xs ++ [x,s]) [] xs0
 --
 -- Example:
 --
--- > pretty defConfig $ "do" ++> block ["putStrLn hello", "putStrLn world"]
+-- > pretty defConfig $ "do" ~> block ["putStrLn hello", "putStrLn world"]
 -- > -- ↪ "do
 -- > --      putStrLn hello
 -- > --      putStrLn world"
@@ -706,7 +717,7 @@ block  xs = indented $ nl +> (xs `sepBy` nl)
 --
 -- Example:
 --
--- > pretty defConfig $ "do" ++> block' ["putStrLn hello", "putStrLn world"]
+-- > pretty defConfig $ "do" ~> block' ["putStrLn hello", "putStrLn world"]
 -- > -- ↪ "do putStrLn hello
 -- > --       putStrLn world"
 block' :: Pretty a => [a] → PrettyM ()
@@ -720,9 +731,9 @@ block' xs = indentedToCurPos $ xs `sepBy` nl
 --
 --   Convenience function, defined as:
 --
---   > ppList ps = "[" ++> (ps `sepBy` ", ") ++> "]"
+--   > ppList ps = "[" ~> (ps `sepBy` ", ") ~> "]"
 ppList :: Pretty a => [a] → PrettyM ()
-ppList ps = "[" ++> (ps `sepBy` ", ") ++> "]"
+ppList ps = "[" ~> (ps `sepBy` ", ") ~> "]"
 
 -- | Print a list map @[(k,v)]@ as 'ppList', but render @(k,v)@ pairs as @"k → v"@.
 --
@@ -732,9 +743,9 @@ ppList ps = "[" ++> (ps `sepBy` ", ") ++> "]"
 --
 --   Convenience function, defined as:
 --
---   > ppListMap = block . map (\(a,b) → a ++> "→" ++> b)
+--   > ppListMap = block . map (\(a,b) → a ~> "→" ~> b)
 ppListMap :: (Pretty a, Pretty b) => [(a, b)] → PrettyM ()
-ppListMap = block . map (\(a,b) → a ++> "→" ++> b)
+ppListMap = block . map (\(a,b) → a ~> "→" ~> b)
 
 -- | Print a @Data.Map@ in the same way as 'ppListMap'.
 ppMap :: (Pretty a, Pretty b) => M.Map a b → PrettyM ()
@@ -776,7 +787,7 @@ ppSExp = ppParen . (`sepBy` sp)
 ppBar ∷ Pretty a => Char → a → PrettyM ()
 ppBar c s = do
   w ← maybe 80 id <$> use maxLineWidth
-  replicate 5 c ++> s ++> replicate (w - (7 + length (pretty (pure ()) s))) c +> "\n"
+  replicate 5 c ~> s ~> replicate (w - (7 + length (pretty (pure ()) s))) c +> "\n"
 
 
 -- | Print a newline (line break).

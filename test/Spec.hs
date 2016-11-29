@@ -71,11 +71,11 @@ main = hspec $ do
   describe "Blocks" $ do
     it "blocks starting on next line" $
       pretty defConfig
-        ("do" ++> block [ "ma", "mb" ]) `shouldBe`
+        ("do" ~> block [ "ma", "mb" ]) `shouldBe`
         "do \n  ma\n  mb"
     it "blocks starting on same line" $
       pretty defConfig
-        ("do" ++> block' [ "ma", "mb" ]) `shouldBe`
+        ("do" ~> block' [ "ma", "mb" ]) `shouldBe`
         "do ma\n   mb"
 
 data Expr
@@ -86,8 +86,8 @@ data Expr
 instance Pretty Expr where
   pp = \case
     EVar x     -> pp x
-    EAbs x e   -> assocR 0 $ "λ" +> x +> "." ++> R e
-    EApp e1 e2 -> assocL 9 $ L e1 ++> R e2
+    EAbs x e   -> assocR 0 $ "λ" +> x +> "." ~> R e
+    EApp e1 e2 -> assocL 9 $ L e1 ~> R e2
 
 e1 = EAbs "x" $ EAbs "y" $ EApp (EApp (EVar "x") (EVar "y"))
                                 (EApp (EVar "x") (EVar "y"))
