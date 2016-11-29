@@ -128,7 +128,7 @@ block' xs = indentedToCurPos $ nl `betweenEach` xs
 --
 --   Convenience function, defined as:
 --
---   > ppList ps = "[" ~> (ps `sepBy` ", ") ~> "]"
+--   > ppList ps = "[" ~> ", " `betweenEach` ps ~> "]"
 ppList :: Pretty a => [a] → PrettyM ()
 ppList ps = "[" ~> ", " `betweenEach` ps ~> "]"
 

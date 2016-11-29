@@ -32,12 +32,9 @@ module Printcess.PrettyPrinting (
   assocL, assocR, assocN,
   left, right, inner, AssocAnn(..),
 
-  -- * Folding Lists of @Pretty@ Things
+  -- * Folding @Pretty@ Things
   betweenEach, beforeEach, afterEach,
-  ppList,
-
-  -- * Folding Maps of @Pretty@ Things
-  ppListMap, ppMap,
+  ppList, ppListMap, ppMap,
 
   -- * Other combinators
   ppParen,
