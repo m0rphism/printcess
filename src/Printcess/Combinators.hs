@@ -57,31 +57,34 @@ a \> b = a +> nl +> b
 --
 --   Examples:
 --
---   > pretty defConfig $ []         `sepBy` ","  -- ↪ ""
---   > pretty defConfig $ ["x"]      `sepBy` ","  -- ↪ "x"
---   > pretty defConfig $ ["x", "y"] `sepBy` ","  -- ↪ "x,y"
-sepBy :: (Pretty a, Pretty b) => [b] → a → PrettyM ()
-sepBy as s = sepByA_ (map pp as) (pp s)
+--   > pretty defConfig $ "," `betweenEach` []          -- ↪ ""
+--   > pretty defConfig $ "," `betweenEach` ["x"]       -- ↪ "x"
+--   > pretty defConfig $ "," `betweenEach` ["x", "y"]  -- ↪ "x,y"
+infixl 6 `betweenEach`
+betweenEach :: (Pretty a, Pretty b) => a → [b] → PrettyM ()
+betweenEach s as = sepByA_ (map pp as) (pp s)
 
 -- | Print an @a@ before each @b@.
 --
 --   Examples:
 --
---   > pretty defConfig $ []         `sepByL` ","  -- ↪ ""
---   > pretty defConfig $ ["x"]      `sepByL` ","  -- ↪ ",x"
---   > pretty defConfig $ ["x", "y"] `sepByL` ","  -- ↪ ",x,y"
-sepByL :: (Pretty a, Pretty b) => [b] → a → PrettyM ()
-sepByL bs a = foldl (>>) (pure ()) $ map pp bs `sepByL'` pp a
+--   > pretty defConfig $ "," `beforeEach` []          -- ↪ ""
+--   > pretty defConfig $ "," `beforeEach` ["x"]       -- ↪ ",x"
+--   > pretty defConfig $ "," `beforeEach` ["x", "y"]  -- ↪ ",x,y"
+infixl 6 `beforeEach`
+beforeEach :: (Pretty a, Pretty b) => a → [b] → PrettyM ()
+beforeEach a bs = foldl (>>) (pure ()) $ map pp bs `sepByL'` pp a
 
 -- | Print an @a@ after each @b@.
 --
 --   Examples:
 --
---   > pretty defConfig $ []         `sepByR` ","  -- ↪ ""
---   > pretty defConfig $ ["x"]      `sepByR` ","  -- ↪ "x,"
---   > pretty defConfig $ ["x", "y"] `sepByR` ","  -- ↪ "x,y,"
-sepByR :: (Pretty a, Pretty b) => [b] → a → PrettyM ()
-sepByR bs a = foldl (>>) (pure ()) $ map pp bs `sepByR'` pp a
+--   > pretty defConfig $ "," `afterEach` []          -- ↪ ""
+--   > pretty defConfig $ "," `afterEach` ["x"]       -- ↪ "x,"
+--   > pretty defConfig $ "," `afterEach` ["x", "y"]  -- ↪ "x,y,"
+infixl 6 `afterEach`
+afterEach :: (Pretty a, Pretty b) => a → [b] → PrettyM ()
+afterEach a bs = foldl (>>) (pure ()) $ map pp bs `sepByR'` pp a
 
 sepByA :: Applicative f => [f a] → f a → f [a]
 sepByA []     _ = pure []
@@ -105,7 +108,7 @@ sepByR' xs0 s = foldl (\xs x → xs ++ [x,s]) [] xs0
 -- > --      putStrLn hello
 -- > --      putStrLn world"
 block :: Pretty a => [a] → PrettyM ()
-block  xs = indented $ nl +> (xs `sepBy` nl)
+block  xs = indented $ nl `beforeEach` xs
 
 -- | Same as 'block', but starts the block on the current line.
 --
@@ -115,7 +118,7 @@ block  xs = indented $ nl +> (xs `sepBy` nl)
 -- > -- ↪ "do putStrLn hello
 -- > --       putStrLn world"
 block' :: Pretty a => [a] → PrettyM ()
-block' xs = indentedToCurPos $ xs `sepBy` nl
+block' xs = indentedToCurPos $ nl `betweenEach` xs
 
 -- | Print a @[a]@ similar to its 'Show' instance.
 --
@@ -127,7 +130,7 @@ block' xs = indentedToCurPos $ xs `sepBy` nl
 --
 --   > ppList ps = "[" ~> (ps `sepBy` ", ") ~> "]"
 ppList :: Pretty a => [a] → PrettyM ()
-ppList ps = "[" ~> (ps `sepBy` ", ") ~> "]"
+ppList ps = "[" ~> ", " `betweenEach` ps ~> "]"
 
 -- | Print a list map @[(k,v)]@ as 'ppList', but render @(k,v)@ pairs as @"k → v"@.
 --

@@ -33,7 +33,7 @@ module Printcess.PrettyPrinting (
   left, right, inner, AssocAnn(..),
 
   -- * Folding Lists of @Pretty@ Things
-  sepBy, sepByL, sepByR,
+  betweenEach, beforeEach, afterEach,
   ppList,
 
   -- * Folding Maps of @Pretty@ Things
