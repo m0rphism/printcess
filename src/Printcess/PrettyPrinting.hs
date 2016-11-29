@@ -453,22 +453,12 @@ class Pretty2 (f :: * → * → *) where
 
 -- | The 'PrettyM' monad is run in the pretty printing process, e.g. in
 --   'pretty' or 'prettyPrint'.
-
---   A monoid could have been used instead, but with a monad the @do@ notation
---   can be used to print in sequence with semicolons.
 newtype PrettyM a = PrettyM { runPrettyM :: State PrettySt a }
   deriving (Functor, Applicative, Monad, MonadState PrettySt)
 
 -- | This instance makes it possible to nest operators like @('+>')@.
 -- Implemented as: @pp = id@
 instance Pretty (PrettyM ()) where pp = id
-
--- instance a ~ () => IsString (PrettyM ()) where
---   fromString = pp
-
-instance a ~ () => Monoid (PrettyM a) where
-  mempty = pure mempty
-  mappend = liftA2 mappend
 
 -- Basic Combinators -----------------------------------------------------------
 
@@ -662,7 +652,7 @@ sepByL (s:ss) s' = s : s' : sepByL ss s'
 --   > pretty defConfig $ interleaveL "," ["x"]       -- ↪ ",x"
 --   > pretty defConfig $ interleaveL "," ["x", "y"]  -- ↪ ",x,y"
 interleaveL :: (Pretty a, Pretty b) => a → [b] → PrettyM ()
-interleaveL a bs = fold $ interleaveL' (pp a) (pp <$> bs)
+interleaveL a bs = foldl (>>) (pure ()) $ interleaveL' (pp a) (pp <$> bs)
 
 -- | Put an @a@ after each element of a @[b]@ and then print them in sequence.
 --
@@ -672,7 +662,7 @@ interleaveL a bs = fold $ interleaveL' (pp a) (pp <$> bs)
 --   > pretty defConfig $ interleaveR "," ["x"]       -- ↪ "x,"
 --   > pretty defConfig $ interleaveR "," ["x", "y"]  -- ↪ "x,y,"
 interleaveR :: (Pretty a, Pretty b) => a → [b] → PrettyM ()
-interleaveR a bs = fold $ interleaveR' (pp a) (pp <$> bs)
+interleaveR a bs = foldl (>>) (pure ()) $ interleaveR' (pp a) (pp <$> bs)
 
 interleaveL' :: a → [a] → [a]
 interleaveL' s = foldl (\xs x → xs ++ [s,x]) []

@@ -49,7 +49,6 @@ library
     -Wall -fno-warn-partial-type-signatures -fdefer-type-errors
   exposed-modules:
     Printcess.PrettyPrinting
-    Printcess.Tutorial
 
 source-repository head
   type:
