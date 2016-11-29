@@ -28,7 +28,7 @@ main = hspec $ do
     it "breaks too long lines" $
       pretty (cMaxLineWidth .= Just 10)
         "foo bar baz boo" `shouldBe`
-        "foo bar \n    baz \n    boo"
+        "foo bar\n    baz\n    boo"
     it "breaks too long lines" $
       pretty (cMaxLineWidth .= Just 11)
         "foo bar baz boo" `shouldBe`
@@ -36,11 +36,11 @@ main = hspec $ do
     it "breaks too long lines twice" $
       pretty (cMaxLineWidth .= Just 10)
         "foo bar baz boo r" `shouldBe`
-        "foo bar \n    baz \n    boo r"
+        "foo bar\n    baz\n    boo r"
     it "breaks too long lines four times" $
       pretty (cMaxLineWidth .= Just 10)
         "foo bar baz boo raz roo" `shouldBe`
-        "foo bar \n    baz \n    boo \n    raz \n    roo"
+        "foo bar\n    baz\n    boo\n    raz\n    roo"
     it "breaks too long lines" $
       pretty (cMaxLineWidth .= Just 11)
         "foo bar baz boo r" `shouldBe`
@@ -52,11 +52,15 @@ main = hspec $ do
     it "breaks too long lines" $
       pretty (cMaxLineWidth .= Just 12)
         "foo bar baz boo r" `shouldBe`
-        "foo bar baz \n    boo r"
+        "foo bar baz\n    boo r"
     it "breaks too long lines & setting indentChar works" $
       pretty (do cMaxLineWidth .= Just 10; cIndentChar .= '~')
         "foo bar baz boo r" `shouldBe`
-        "foo bar \n~~~~baz \n~~~~boo r"
+        "foo bar\n~~~~baz\n~~~~boo r"
+    it "removes spaces around broken lines" $
+      pretty (cMaxLineWidth .= Just 10)
+        "foo bar        baz boo" `shouldBe`
+        "foo bar\n    baz\n    boo"
 
   describe "Lambda Calculus" $ do
     it "respects associativity" $

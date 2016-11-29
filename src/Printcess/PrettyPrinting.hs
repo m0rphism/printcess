@@ -368,6 +368,9 @@ isWS, isNoWS :: Char → Bool
 isWS   = (`elem` [' ', '\t'])
 isNoWS = not . isWS
 
+dropWhileEnd :: (a → Bool) → [a] → [a]
+dropWhileEnd f = reverse . dropWhile f . reverse
+
 -- | In contrast to 'Show', @"foo"@ is printed as @"foo"@ and not @"\\"foo\\""@.
 -- Most of the other instances are defined in terms of this instance.
 -- If the 'String' contains newline characters (@'\n'@), indentation is inserted
@@ -398,7 +401,7 @@ instance Pretty String where
                   = both %~ reverse $ break (==' ') $ reverse curLine'
                 | otherwise
                   = ("", curLine')
-          text . head1L .= curLine''
+          text . head1L .= dropWhileEnd isWS curLine''
           -- Increase indentation once after the first forced line break, this results into:
           --   this line was too long
           --       still the first line
