@@ -67,10 +67,8 @@ module Printcess.PrettyPrinting (
   State, (.=),
   ) where
 
-import Control.Applicative
 import Control.Monad.State.Lazy
 import Control.Lens
-import Data.Foldable
 import qualified Data.Map as M
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
