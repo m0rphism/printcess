@@ -4,7 +4,7 @@
 
 module Printcess.Config where
 
-import Control.Monad.State.Lazy
+import Control.Monad.State.Strict
 import Control.Lens
 
 -- | A 'Config' allows to specify various pretty printing options, e.g.

@@ -5,7 +5,7 @@
 
 module Printcess.Core where
 
-import Control.Monad.State.Lazy
+import Control.Monad.State.Strict
 import Control.Lens
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))

@@ -53,7 +53,7 @@ module Printcess.PrettyPrinting (
   State, (.=),
   ) where
 
-import Control.Monad.State.Lazy
+import Control.Monad.State.Strict
 import Control.Lens
 
 import Printcess.Config
