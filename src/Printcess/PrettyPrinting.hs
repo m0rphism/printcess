@@ -26,6 +26,7 @@ module Printcess.PrettyPrinting (
 
   -- * Indentation
   indentedByChars, indentedBy, indented,
+  block, block',
 
   -- * Associativity & Fixity
   assocL, assocR, assocN,
@@ -33,7 +34,6 @@ module Printcess.PrettyPrinting (
 
   -- * Folding Lists of @Pretty@ Things
   sepBy, sepByL, sepByR,
-  block, block',
   ppList, ppSExp,
 
   -- * Folding Maps of @Pretty@ Things
