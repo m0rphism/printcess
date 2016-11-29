@@ -23,7 +23,7 @@ maintainer:
 copyright:
   2016 Hannes Saffrich
 category:
-  Web
+  Pretty Printer
 build-type:
   Custom
 cabal-version:
