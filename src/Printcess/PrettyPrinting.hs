@@ -1,6 +1,6 @@
 {-# LANGUAGE
-  DefaultSignatures, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase,
-  TemplateHaskell, UnicodeSyntax
+  DefaultSignatures, FlexibleInstances, GeneralizedNewtypeDeriving,
+  KindSignatures, LambdaCase, MultiWayIf, TemplateHaskell, UnicodeSyntax
 #-}
 
 module Printcess.PrettyPrinting (
