@@ -39,7 +39,7 @@ module Printcess.PrettyPrinting (
   (++>),
 
   -- * Indentation
-  indent, unindent, indented,
+  indentedByChars, indentedBy, indented,
 
   -- * Associativity & Fixity
   assocL, assocR, assocN,
@@ -405,7 +405,7 @@ instance Pretty String where
           --       still the first line
           --       it won't stop
           i ← use indentAfterBreaks
-          let f | first     = indentedBy i
+          let f | first     = indentedByChars i
                 | otherwise = id
           f $ do nl; ppLine False $ dropWhile isWS $ wordRest ++ lineRest
 
@@ -486,45 +486,62 @@ a ++> b = a +> sp +> b
 
 -- Indentation -----------------------------------------------------------------
 
--- | Increment indentation level.
-indent :: PrettyM ()
-indent = (indentation +=) =<< use indentDepth
+indentByChars
+  :: Int
+  -> PrettyM ()
+indentByChars =
+  (indentation +=)
 
--- | Decrement indentation level.
-unindent :: PrettyM ()
-unindent = (indentation -=) =<< use indentDepth
+indentByLevels
+  :: Int
+  -> PrettyM ()
+indentByLevels i =
+  (indentation +=) . (i *) =<< use indentDepth
 
--- | Increment indentation level.
-indentBy :: Int → PrettyM ()
-indentBy = (indentation +=)
-
--- | Decrement indentation level.
-unindentBy :: Int → PrettyM ()
-unindentBy = (indentation -=)
-
--- | Print an @a@ using an incremented indentation after newlines.
+-- | Print an @a@ with indentation increased by a certain amount of
+--   'cIndentChar' characters.
 --
 --   Example:
 --
---   > pretty defConfig $ "while (true) {" +>
---   >              indented (nl +> "f();" +> nl +> "g();") +>
---   >              nl +> "}"
---   > ≡ pretty defConfig $ "while (true) {" +>
---   >              block ["f();", "g();"] +>
---   >              nl +> "}"
---   > ↪ "while (true) {
---   >      f();
---   >      g();
---   >    }"
---
---   Convenience function, defined as
---
---   > indented a = indent +> a +> unindent
-indented :: Pretty a => a → PrettyM ()
-indented a = do indent; pp a; unindent
+--   > pretty defConfig $
+--   >   "while (true) {" +> nl +>
+--   >   indentedByChars 2 ("f();" +> nl +> "g();" +> nl) +>
+--   >   "}"
+--   > -- ↪ "while (true) {
+--   > --      f();
+--   > --      g();
+--   > --    }"
+indentedByChars
+  :: Pretty a
+  => Int         -- ^ Number of characters to increase indentation.
+  -> a           -- ^ A 'Pretty' printable @a@
+  -> PrettyM ()  -- ^ An action printing the @a@ with increased indentation.
+indentedByChars i a = do
+  indentByChars i
+  pp a
+  indentByChars (-i)
 
-indentedBy :: Pretty a => Int → a → PrettyM ()
-indentedBy i a = do indentBy i; pp a; unindentBy i
+-- | Same as 'indentedByChars' but increases indentation in 'cIndentDepth' steps.
+indentedBy
+  :: Pretty a
+  => Int          -- ^ Number of indentation levels to increase.
+                  --   One indentation level consists of 'cIndentDepth' characters.
+  -> a            -- ^ A 'Pretty' printable @a@
+  -> PrettyM ()   -- ^ An action printing the @a@ with increased indentation.
+indentedBy i a = do
+  indentByLevels i
+  pp a
+  indentByLevels (-i)
+
+-- | Convenience function defined as:
+--
+-- > indented = indentedBy 1
+indented
+  :: Pretty a
+  => a           -- ^ A 'Pretty' printable @a@
+  -> PrettyM ()  -- ^ An action printing the @a@ indented 1 level deeper.
+indented =
+  indentedBy 1
 
 addIndent :: PrettyM ()
 addIndent = do
@@ -619,7 +636,7 @@ assocDir a ma = do
 
 -- Composite Combinators -------------------------------------------------------
 
--- | Put an @a@ between each element of a @[b]@ and then print them in sequence.
+-- | Print an @a@ between each @b@.
 --
 --   Examples:
 --
@@ -642,23 +659,23 @@ sepByList []  _    = []
 sepByList [s] _    = [s]
 sepByList (s:ss) s' = s : s' : sepByList ss s'
 
--- | Put an @a@ before each element of a @[b]@ and then print them in sequence.
+-- | Print an @a@ before each @b@.
 --
 --   Examples:
 --
---   > pretty defConfig $ sepByL "," []          -- ↪ ""
---   > pretty defConfig $ sepByL "," ["x"]       -- ↪ ",x"
---   > pretty defConfig $ sepByL "," ["x", "y"]  -- ↪ ",x,y"
+--   > pretty defConfig $ []         `sepByL` ","  -- ↪ ""
+--   > pretty defConfig $ ["x"]      `sepByL` ","  -- ↪ ",x"
+--   > pretty defConfig $ ["x", "y"] `sepByL` ","  -- ↪ ",x,y"
 sepByL :: (Pretty a, Pretty b) => [b] → a → PrettyM ()
 sepByL bs a = foldl (>>) (pure ()) $ map pp bs `sepByL'` pp a
 
--- | Put an @a@ after each element of a @[b]@ and then print them in sequence.
+-- | Print an @a@ after each @b@.
 --
 --   Examples:
 --
---   > pretty defConfig $ sepByR "," []          -- ↪ ""
---   > pretty defConfig $ sepByR "," ["x"]       -- ↪ "x,"
---   > pretty defConfig $ sepByR "," ["x", "y"]  -- ↪ "x,y,"
+--   > pretty defConfig $ []         `sepByR` ","  -- ↪ ""
+--   > pretty defConfig $ ["x"]      `sepByR` ","  -- ↪ "x,"
+--   > pretty defConfig $ ["x", "y"] `sepByR` ","  -- ↪ "x,y,"
 sepByR :: (Pretty a, Pretty b) => [b] → a → PrettyM ()
 sepByR bs a = foldl (>>) (pure ()) $ map pp bs `sepByR'` pp a
 
