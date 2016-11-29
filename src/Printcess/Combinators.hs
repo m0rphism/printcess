@@ -1,6 +1,4 @@
-{-# LANGUAGE
-  UnicodeSyntax
-#-}
+{-# LANGUAGE UnicodeSyntax #-}
 
 module Printcess.Combinators where
 

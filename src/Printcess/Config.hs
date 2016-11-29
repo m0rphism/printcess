@@ -1,6 +1,4 @@
-{-# LANGUAGE
-  TemplateHaskell, UnicodeSyntax
-#-}
+{-# LANGUAGE TemplateHaskell, UnicodeSyntax #-}
 
 module Printcess.Config where
 

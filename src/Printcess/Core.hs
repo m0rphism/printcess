@@ -1,7 +1,6 @@
-{-# LANGUAGE
-  DefaultSignatures, FlexibleInstances, GeneralizedNewtypeDeriving,
-  KindSignatures, LambdaCase, MultiWayIf, TemplateHaskell, UnicodeSyntax
-#-}
+{-# LANGUAGE DefaultSignatures, FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiWayIf #-}
+{-# LANGUAGE TemplateHaskell, UnicodeSyntax #-}
 
 module Printcess.Core where
 
