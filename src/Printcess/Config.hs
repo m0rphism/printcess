@@ -17,7 +17,8 @@ import Control.Lens
 --
 -- > foo :: String
 -- > foo = pretty config "foo bar baz"
--- >   where config = do cMaxLineWidth      .= Just 6
+-- >   where config :: State Config ()
+-- >         config = do cMaxLineWidth      .= Just 6
 -- >                     cInitIndent        .= 2
 -- >                     cIndentAfterBreaks .= 0
 data Config = Config
