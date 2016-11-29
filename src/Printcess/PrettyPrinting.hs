@@ -360,6 +360,11 @@ isWS, isNoWS :: Char → Bool
 isWS   = (`elem` [' ', '\t'])
 isNoWS = not . isWS
 
+-- | In contrast to 'Show', @"foo"@ is printed as @"foo"@ and not @"\\"foo\\""@.
+-- Most of the other instances are defined in terms of this instance.
+-- If the 'String' contains newline characters (@'\n'@), indentation is inserted
+-- automatically afterwards.
+-- If the current line gets too long, it is automatically broken.
 instance Pretty String where
   pp = go . lines' where
     go :: [String] -> PrettyM ()
@@ -391,10 +396,22 @@ instance Pretty String where
               | otherwise = id
         f $ do nl; ppLine False $ dropWhile isWS $ wordRest ++ lineRest
 
-instance Pretty Char   where pp = pp . (:[])
+-- | In contrast to 'Show', @\'c\'@ is printed as @"c"@ and not @"\'c\'"@.
+-- Implemented as: @pp = pp . (:"")@
+instance Pretty Char   where pp = pp . (:"")
+
+-- | Behaves like 'Show': @1@ is printed to @"1"@.
+-- Implemented as: @pp = pp . show@
 instance Pretty Int    where pp = pp . show
+
+-- | Behaves like 'Show': @1.2@ is printed to @"1.2"@.
+-- Implemented as: @pp = pp . show@
 instance Pretty Float  where pp = pp . show
+
+-- | Behaves like 'Show': @1.2@ is printed to @"1.2"@.
+-- Implemented as: @pp = pp . show@
 instance Pretty Double where pp = pp . show
+
 instance (Pretty k, Pretty v) => Pretty (M.Map k v) where
   pp = foldl pp' (pp "") . M.toList where
     pp' s (k, v) = s +> k ++> "=>" ++> indented v +> nl
