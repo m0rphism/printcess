@@ -157,19 +157,6 @@ ppMap = ppListMap . M.assocs
 ppParen ∷ Pretty a ⇒ a → PrettyM ()
 ppParen x = "(" +> x +> ")"
 
--- | Print a @[a]@ as an LISP like SExpr, that is the elements separated by
---   spaces and enclosed in parentheses.
---
---   Example:
---
---   > pretty defConfig $ ppSExp ["+", "2", "3"]  -- ↪ "(+ 2 3)"
---
---   Convenience function, defined as:
---
---   > ppSExp = ppParen . (`sepBy` sp)
-ppSExp ∷ Pretty b ⇒ [b] → PrettyM ()
-ppSExp = ppParen . (`sepBy` sp)
-
 -- | Print a horizontal bar consisting of a 'Char' as long as 'cMaxLineWidth'
 --   (or 80 if it is @Nothing@). The horizontal bar has a title 'String' printed
 --   at column 6.

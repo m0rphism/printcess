@@ -34,7 +34,7 @@ module Printcess.PrettyPrinting (
 
   -- * Folding Lists of @Pretty@ Things
   sepBy, sepByL, sepByR,
-  ppList, ppSExp,
+  ppList,
 
   -- * Folding Maps of @Pretty@ Things
   ppListMap, ppMap,
