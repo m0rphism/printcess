@@ -14,5 +14,5 @@ src/highlight.js
 src/style.css
 default.nix
 shell.nix
-
+stack.yaml
 output/
